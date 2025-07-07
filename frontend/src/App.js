@@ -364,6 +364,11 @@ function AdminDashboard() {
             </div>
           )}
 
+          {/* Nouvelles sections IA */}
+          {activeTab === 'ai-insights' && <AIInsightsSection />}
+          {activeTab === 'ai-inventory' && <AIInventorySection />}
+          {activeTab === 'ai-pricing' && <AIPricingSection />}
+
           {activeTab === 'orders' && (
             <div className="bg-white rounded-lg shadow-sm">
               <div className="p-6 border-b">
