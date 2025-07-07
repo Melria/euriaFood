@@ -258,7 +258,10 @@ function AdminDashboard() {
               { key: 'dashboard', label: '📊 Tableau de bord', icon: '📊' },
               { key: 'orders', label: '📋 Commandes', icon: '📋' },
               { key: 'menu', label: '🍽️ Menu', icon: '🍽️' },
-              { key: 'reservations', label: '📅 Réservations', icon: '📅' }
+              { key: 'reservations', label: '📅 Réservations', icon: '📅' },
+              { key: 'ai-insights', label: '🤖 IA Insights', icon: '🤖' },
+              { key: 'ai-inventory', label: '📦 IA Stock', icon: '📦' },
+              { key: 'ai-pricing', label: '💎 IA Prix', icon: '💎' }
             ].map((tab) => (
               <button
                 key={tab.key}
