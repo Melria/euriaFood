@@ -277,52 +277,85 @@ function AdminDashboard() {
 
         <main className="flex-1 p-6">
           {activeTab === 'dashboard' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Commandes totales</p>
-                    <p className="text-2xl font-bold text-gray-800">{stats.total_orders || 0}</p>
+            <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Commandes totales</p>
+                      <p className="text-2xl font-bold text-gray-800">{stats.total_orders || 0}</p>
+                    </div>
+                    <div className="bg-blue-100 p-3 rounded-full">
+                      <span className="text-2xl">📋</span>
+                    </div>
                   </div>
-                  <div className="bg-blue-100 p-3 rounded-full">
-                    <span className="text-2xl">📋</span>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Clients</p>
+                      <p className="text-2xl font-bold text-gray-800">{stats.total_users || 0}</p>
+                    </div>
+                    <div className="bg-green-100 p-3 rounded-full">
+                      <span className="text-2xl">👥</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Chiffre d'affaires</p>
+                      <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}€</p>
+                    </div>
+                    <div className="bg-yellow-100 p-3 rounded-full">
+                      <span className="text-2xl">💰</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Commandes aujourd'hui</p>
+                      <p className="text-2xl font-bold text-gray-800">{stats.today_orders || 0}</p>
+                    </div>
+                    <div className="bg-purple-100 p-3 rounded-full">
+                      <span className="text-2xl">📈</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Clients</p>
-                    <p className="text-2xl font-bold text-gray-800">{stats.total_users || 0}</p>
-                  </div>
-                  <div className="bg-green-100 p-3 rounded-full">
-                    <span className="text-2xl">👥</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Chiffre d'affaires</p>
-                    <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}€</p>
-                  </div>
-                  <div className="bg-yellow-100 p-3 rounded-full">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Commandes aujourd'hui</p>
-                    <p className="text-2xl font-bold text-gray-800">{stats.today_orders || 0}</p>
-                  </div>
-                  <div className="bg-purple-100 p-3 rounded-full">
-                    <span className="text-2xl">📈</span>
-                  </div>
+              {/* Section IA */}
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 mb-6">
+                <h3 className="text-xl font-bold text-white mb-4">🤖 Intelligence Artificielle</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => setActiveTab('ai-insights')}
+                    className="bg-white bg-opacity-20 text-white p-4 rounded-lg hover:bg-opacity-30 transition-colors"
+                  >
+                    <div className="text-2xl mb-2">🧠</div>
+                    <div className="font-medium">Insights IA</div>
+                    <div className="text-sm opacity-90">Analytics intelligents</div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('ai-inventory')}
+                    className="bg-white bg-opacity-20 text-white p-4 rounded-lg hover:bg-opacity-30 transition-colors"
+                  >
+                    <div className="text-2xl mb-2">📦</div>
+                    <div className="font-medium">Prédiction Stock</div>
+                    <div className="text-sm opacity-90">Gestion intelligente</div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('ai-pricing')}
+                    className="bg-white bg-opacity-20 text-white p-4 rounded-lg hover:bg-opacity-30 transition-colors"
+                  >
+                    <div className="text-2xl mb-2">💎</div>
+                    <div className="font-medium">Optimisation Prix</div>
+                    <div className="text-sm opacity-90">Prix intelligents</div>
+                  </button>
                 </div>
               </div>
             </div>
