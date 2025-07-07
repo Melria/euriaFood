@@ -12,6 +12,8 @@ import uuid
 from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
+from ai_service import ai_service
+from inventory_models import *
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -28,12 +30,12 @@ SECRET_KEY = "your-secret-key-here"
 ALGORITHM = "HS256"
 
 # Create the main app without a prefix
-app = FastAPI(title="Restaurant Management System", version="1.0.0")
+app = FastAPI(title="Restaurant Management System IA", version="2.0.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Models
+# Modèles existants
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: str
@@ -60,6 +62,7 @@ class MenuItem(BaseModel):
     category: str
     image_url: str
     available: bool = True
+    popularity_score: float = 0.0
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class MenuItemCreate(BaseModel):
@@ -80,7 +83,7 @@ class Order(BaseModel):
     user_id: str
     items: List[OrderItem]
     total: float
-    status: str = "pending"  # pending, confirmed, preparing, ready, delivered
+    status: str = "pending"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
 class OrderCreate(BaseModel):
@@ -91,7 +94,7 @@ class Table(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     number: int
     seats: int
-    status: str = "available"  # available, occupied, reserved
+    status: str = "available"
     
 class Reservation(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -99,13 +102,22 @@ class Reservation(BaseModel):
     table_id: str
     date: datetime
     guests: int
-    status: str = "pending"  # pending, confirmed, cancelled
+    status: str = "pending"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class ReservationCreate(BaseModel):
     table_id: str
     date: datetime
     guests: int
+
+# Nouveaux modèles IA
+class RecommendationRequest(BaseModel):
+    user_id: str
+    preferences: Optional[dict] = None
+
+class ForecastRequest(BaseModel):
+    days_ahead: int = 7
+    include_external_factors: bool = True
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -160,7 +172,130 @@ async def login(user: UserLogin):
     access_token = create_access_token(data={"sub": db_user["id"]})
     return {"access_token": access_token, "token_type": "bearer", "user": {"id": db_user["id"], "name": db_user["name"], "email": db_user["email"], "role": db_user["role"]}}
 
-# Menu Routes
+# Routes IA - Recommandations
+@api_router.post("/ai/recommendations")
+async def get_ai_recommendations(request: RecommendationRequest, current_user: dict = Depends(get_current_user)):
+    """Obtenir des recommandations IA personnalisées"""
+    try:
+        # Récupérer l'historique des commandes
+        order_history = await db.orders.find({"user_id": request.user_id}).sort("created_at", -1).limit(20).to_list(20)
+        
+        # Générer recommandations avec IA
+        recommendations = await ai_service.generate_menu_recommendations(
+            request.user_id, order_history, request.preferences
+        )
+        
+        return {"status": "success", "recommendations": recommendations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur recommandations IA: {str(e)}")
+
+# Routes IA - Prédiction de stock
+@api_router.post("/ai/inventory/forecast")
+async def get_inventory_forecast(request: ForecastRequest, current_user: dict = Depends(get_current_user)):
+    """Prédiction intelligente de la demande d'inventaire"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Récupérer données historiques
+        historical_data = await db.orders.find().sort("created_at", -1).limit(1000).to_list(1000)
+        
+        # Générer prédictions
+        forecast = await ai_service.predict_inventory_demand(historical_data, request.days_ahead)
+        
+        return {"status": "success", "forecast": forecast}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur prédiction inventaire: {str(e)}")
+
+# Routes IA - Optimisation prix
+@api_router.post("/ai/pricing/optimize")
+async def optimize_pricing(current_user: dict = Depends(get_current_user)):
+    """Optimisation intelligente des prix"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Récupérer items du menu
+        menu_items = await db.menu_items.find().to_list(100)
+        
+        # Données marché (simulation)
+        market_data = {"competition": "moderate", "demand_trend": "stable"}
+        
+        # Optimiser prix
+        optimization = await ai_service.optimize_pricing(menu_items, market_data)
+        
+        return {"status": "success", "optimization": optimization}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur optimisation prix: {str(e)}")
+
+# Routes IA - Insights business
+@api_router.get("/ai/insights")
+async def get_business_insights(current_user: dict = Depends(get_current_user)):
+    """Insights business intelligents"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Récupérer données analytics
+        orders = await db.orders.find().sort("created_at", -1).limit(500).to_list(500)
+        menu_items = await db.menu_items.find().to_list(100)
+        
+        analytics_data = {
+            "orders": orders[:50],  # Limiter pour l'IA
+            "menu_items": menu_items,
+            "period": "last_30_days"
+        }
+        
+        # Générer insights
+        insights = await ai_service.generate_business_insights(analytics_data)
+        
+        return {"status": "success", "insights": insights}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur insights business: {str(e)}")
+
+# Gestion Inventaire
+@api_router.get("/inventory", response_model=List[InventoryItem])
+async def get_inventory(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    inventory = await db.inventory.find().to_list(100)
+    return [InventoryItem(**item) for item in inventory]
+
+@api_router.post("/inventory", response_model=InventoryItem)
+async def create_inventory_item(item: InventoryCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    item_dict = item.dict()
+    item_obj = InventoryItem(**item_dict)
+    await db.inventory.insert_one(item_obj.dict())
+    return item_obj
+
+@api_router.get("/inventory/alerts")
+async def get_stock_alerts(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Récupérer les alertes de stock
+    inventory = await db.inventory.find().to_list(100)
+    alerts = []
+    
+    for item in inventory:
+        if item["current_stock"] <= item["min_stock_level"]:
+            alerts.append({
+                "id": str(uuid.uuid4()),
+                "inventory_item_id": item["id"],
+                "alert_type": "low_stock",
+                "message": f"Stock faible pour {item['name']}: {item['current_stock']} {item['unit']}",
+                "priority": "high" if item["current_stock"] == 0 else "medium",
+                "created_at": datetime.utcnow(),
+                "resolved": False
+            })
+    
+    return {"alerts": alerts}
+
+# Routes existantes (menu, commandes, etc.)
 @api_router.get("/menu", response_model=List[MenuItem])
 async def get_menu():
     menu_items = await db.menu_items.find({"available": True}).to_list(100)
@@ -181,7 +316,6 @@ async def get_menu_categories():
     categories = await db.menu_items.distinct("category")
     return {"categories": categories}
 
-# Order Routes
 @api_router.post("/orders", response_model=Order)
 async def create_order(order: OrderCreate, current_user: dict = Depends(get_current_user)):
     order_dict = order.dict()
@@ -217,7 +351,6 @@ async def update_order_status(order_id: str, status: str, current_user: dict = D
     await db.orders.update_one({"id": order_id}, {"$set": {"status": status}})
     return {"message": "Order status updated"}
 
-# Table Routes
 @api_router.get("/tables", response_model=List[Table])
 async def get_tables():
     tables = await db.tables.find().to_list(50)
@@ -231,7 +364,6 @@ async def create_table(table: Table, current_user: dict = Depends(get_current_us
     await db.tables.insert_one(table.dict())
     return table
 
-# Reservation Routes
 @api_router.post("/reservations", response_model=Reservation)
 async def create_reservation(reservation: ReservationCreate, current_user: dict = Depends(get_current_user)):
     reservation_dict = reservation.dict()
@@ -248,7 +380,6 @@ async def get_reservations(current_user: dict = Depends(get_current_user)):
         reservations = await db.reservations.find({"user_id": current_user["id"]}).to_list(100)
     return [Reservation(**reservation) for reservation in reservations]
 
-# Stats Routes (Admin only)
 @api_router.get("/stats/dashboard")
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
@@ -294,7 +425,7 @@ async def shutdown_db_client():
 # Initialize demo data
 @app.on_event("startup")
 async def startup_event():
-    # Check if admin user exists
+    # Admin user
     admin_user = await db.users.find_one({"email": "admin@restaurant.com"})
     if not admin_user:
         admin_dict = {
@@ -308,45 +439,48 @@ async def startup_event():
         await db.users.insert_one(admin_dict)
         logger.info("Admin user created: admin@restaurant.com / admin123")
     
-    # Check if menu items exist
+    # Menu items avec données IA
     menu_count = await db.menu_items.count_documents({})
     if menu_count == 0:
         demo_menu = [
             {
                 "id": str(uuid.uuid4()),
-                "name": "Burger Classic",
-                "description": "Burger artisanal avec fromage, salade et tomate",
+                "name": "Burger Classic IA",
+                "description": "Burger artisanal optimisé par IA avec fromage, salade et tomate",
                 "price": 12.90,
                 "category": "Plats",
                 "image_url": "https://images.unsplash.com/photo-1700513970028-d8a630d21c6e",
                 "available": True,
+                "popularity_score": 0.92,
                 "created_at": datetime.utcnow()
             },
             {
                 "id": str(uuid.uuid4()),
-                "name": "Salade César",
-                "description": "Salade fraîche avec poulet grillé et parmesan",
+                "name": "Salade Smart César",
+                "description": "Salade optimisée avec recommandations nutritionnelles IA",
                 "price": 9.50,
                 "category": "Entrées",
                 "image_url": "https://images.unsplash.com/photo-1556742393-d75f468bfcb0",
                 "available": True,
+                "popularity_score": 0.87,
                 "created_at": datetime.utcnow()
             },
             {
                 "id": str(uuid.uuid4()),
-                "name": "Cocktail Signature",
-                "description": "Cocktail maison aux fruits frais",
+                "name": "Cocktail IA Signature",
+                "description": "Cocktail aux fruits frais avec recette optimisée par intelligence artificielle",
                 "price": 8.00,
                 "category": "Boissons",
                 "image_url": "https://images.unsplash.com/photo-1700513970042-f1fc4236c0bc",
                 "available": True,
+                "popularity_score": 0.75,
                 "created_at": datetime.utcnow()
             }
         ]
         await db.menu_items.insert_many(demo_menu)
-        logger.info("Demo menu items created")
+        logger.info("Demo menu items IA created")
     
-    # Check if tables exist
+    # Tables
     table_count = await db.tables.count_documents({})
     if table_count == 0:
         demo_tables = [
@@ -357,3 +491,35 @@ async def startup_event():
         ]
         await db.tables.insert_many(demo_tables)
         logger.info("Demo tables created")
+    
+    # Inventaire initial
+    inventory_count = await db.inventory.count_documents({})
+    if inventory_count == 0:
+        demo_inventory = [
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Pain burger",
+                "category": "Boulangerie",
+                "current_stock": 50,
+                "min_stock_level": 20,
+                "max_stock_level": 100,
+                "unit": "pièces",
+                "cost_per_unit": 0.50,
+                "supplier": "Boulangerie Locale",
+                "last_updated": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Salade verte",
+                "category": "Légumes",
+                "current_stock": 15,
+                "min_stock_level": 10,
+                "max_stock_level": 30,
+                "unit": "kg",
+                "cost_per_unit": 2.50,
+                "supplier": "Maraîcher Bio",
+                "last_updated": datetime.utcnow()
+            }
+        ]
+        await db.inventory.insert_many(demo_inventory)
+        logger.info("Demo inventory created")
