@@ -503,6 +503,331 @@ function AdminDashboard() {
   );
 }
 
+// AI Components
+function AIInsightsSection() {
+  const [insights, setInsights] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadInsights = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/ai/insights`);
+      setInsights(response.data.insights);
+    } catch (error) {
+      console.error('Erreur insights IA:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-6 border-b">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">🧠 Insights Business IA</h2>
+          <button
+            onClick={loadInsights}
+            disabled={loading}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+          >
+            {loading ? 'Analyse...' : 'Analyser'}
+          </button>
+        </div>
+      </div>
+      <div className="p-6">
+        {insights ? (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-bold mb-4">📊 Insights Clés</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {insights.insights?.map((insight, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="flex items-center mb-2">
+                      <span className="text-lg mr-2">📈</span>
+                      <h4 className="font-bold">{insight.category}</h4>
+                      <span className={`ml-auto px-2 py-1 rounded text-xs ${
+                        insight.impact === 'high' ? 'bg-red-100 text-red-800' :
+                        insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {insight.impact}
+                      </span>
+                    </div>
+                    <p className="text-gray-600">{insight.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold mb-4">💡 Recommandations IA</h3>
+              <div className="space-y-3">
+                {insights.recommendations?.map((rec, index) => (
+                  <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <span className="text-lg mr-3">💡</span>
+                      <p className="text-blue-800">{rec}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold mb-4">🎯 Actions Prioritaires</h3>
+              <div className="space-y-2">
+                {insights.priority_actions?.map((action, index) => (
+                  <div key={index} className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <p className="text-orange-800 font-medium">{action}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🧠</div>
+            <p className="text-gray-600 mb-4">Analyse IA des performances business</p>
+            <p className="text-sm text-gray-500">Cliquez sur "Analyser" pour obtenir des insights intelligents</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AIInventorySection() {
+  const [forecast, setForecast] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadForecast = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/ai/inventory/forecast`, {
+        days_ahead: 7,
+        include_external_factors: true
+      });
+      setForecast(response.data.forecast);
+    } catch (error) {
+      console.error('Erreur prédiction stock:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAlerts = async () => {
+    try {
+      const response = await axios.get(`${API}/inventory/alerts`);
+      setAlerts(response.data.alerts);
+    } catch (error) {
+      console.error('Erreur alertes stock:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadAlerts();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="p-6 border-b">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-800">📦 Gestion Stock IA</h2>
+            <button
+              onClick={loadForecast}
+              disabled={loading}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Prédiction...' : 'Prédire Demande'}
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          {forecast ? (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-bold mb-4">📈 Prédictions 7 jours</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {forecast.predictions?.map((pred, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <h4 className="font-bold mb-2">{pred.item_name}</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span>Demande prédite:</span>
+                          <span className="font-bold">{pred.predicted_demand}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Confiance:</span>
+                          <span className={`font-bold ${
+                            pred.confidence > 0.8 ? 'text-green-600' :
+                            pred.confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {Math.round(pred.confidence * 100)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Tendance:</span>
+                          <span className={`font-bold ${
+                            pred.trend === 'croissant' ? 'text-green-600' :
+                            pred.trend === 'stable' ? 'text-blue-600' : 'text-red-600'
+                          }`}>
+                            {pred.trend}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {forecast.alerts && (
+                <div>
+                  <h3 className="text-lg font-bold mb-4">⚠️ Alertes IA</h3>
+                  <div className="space-y-2">
+                    {forecast.alerts.map((alert, index) => (
+                      <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-yellow-800">{alert}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📦</div>
+              <p className="text-gray-600 mb-4">Prédiction intelligente des stocks</p>
+              <p className="text-sm text-gray-500">Utilise l'IA pour prédire la demande future</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Alertes Stock */}
+      {alerts.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm">
+          <div className="p-6 border-b">
+            <h2 className="text-lg font-bold text-gray-800">🚨 Alertes Stock Actuelles</h2>
+          </div>
+          <div className="p-6">
+            <div className="space-y-3">
+              {alerts.map((alert, index) => (
+                <div key={index} className={`border rounded-lg p-4 ${
+                  alert.priority === 'high' ? 'border-red-300 bg-red-50' :
+                  alert.priority === 'medium' ? 'border-yellow-300 bg-yellow-50' :
+                  'border-blue-300 bg-blue-50'
+                }`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium">{alert.message}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      alert.priority === 'high' ? 'bg-red-100 text-red-800' :
+                      alert.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {alert.priority}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AIPricingSection() {
+  const [optimization, setOptimization] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const optimizePricing = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/ai/pricing/optimize`);
+      setOptimization(response.data.optimization);
+    } catch (error) {
+      console.error('Erreur optimisation prix:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-6 border-b">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">💎 Optimisation Prix IA</h2>
+          <button
+            onClick={optimizePricing}
+            disabled={loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Optimisation...' : 'Optimiser Prix'}
+          </button>
+        </div>
+      </div>
+      <div className="p-6">
+        {optimization ? (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-bold mb-4">💰 Prix Optimisés</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {optimization.optimized_prices?.map((item, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <h4 className="font-bold mb-3">{item.item_name}</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Prix actuel:</span>
+                        <span className="text-gray-600">{item.current_price}€</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Prix optimisé:</span>
+                        <span className="font-bold text-green-600">{item.optimized_price}€</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Changement:</span>
+                        <span className={`font-bold ${
+                          item.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {item.change}
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-gray-600">{item.reasoning}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-bold text-blue-800 mb-2">🎯 Raisonnement IA</h4>
+              <p className="text-blue-700">{optimization.reasoning}</p>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-bold text-green-800 mb-2">📈 Impact Attendu</h4>
+              <p className="text-green-700">{optimization.expected_impact}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">💎</div>
+            <p className="text-gray-600 mb-4">Optimisation intelligente des prix</p>
+            <p className="text-sm text-gray-500">L'IA analyse le marché et optimise vos prix pour maximiser les profits</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Client Interface Component
 function ClientInterface() {
   const [activeTab, setActiveTab] = useState('menu');
