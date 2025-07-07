@@ -996,6 +996,55 @@ function ClientInterface() {
             <div>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Notre Menu</h2>
+                
+                {/* Recommandations IA */}
+                <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-4 mb-6">
+                  <div className="flex justify-between items-center">
+                    <div className="text-white">
+                      <h3 className="text-lg font-bold mb-1">🤖 Recommandations IA pour vous</h3>
+                      <p className="text-sm opacity-90">Sélections personnalisées basées sur vos goûts</p>
+                    </div>
+                    <button
+                      onClick={loadAIRecommendations}
+                      disabled={loadingRecommendations}
+                      className="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      {loadingRecommendations ? 'Analyse...' : 'Obtenir Recommandations'}
+                    </button>
+                  </div>
+                  
+                  {aiRecommendations && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {aiRecommendations.recommended_items?.map((item, index) => (
+                        <div key={index} className="bg-white bg-opacity-20 rounded-lg p-3">
+                          <h4 className="text-white font-bold">{item.name}</h4>
+                          <p className="text-white text-sm opacity-90">{item.reason}</p>
+                          <div className="flex justify-between items-center mt-2">
+                            <span className="text-white text-xs">
+                              Confiance: {Math.round(item.confidence_score * 100)}%
+                            </span>
+                            <button 
+                              onClick={() => {
+                                const menuItem = menuItems.find(m => m.name === item.name);
+                                if (menuItem) addToCart(menuItem);
+                              }}
+                              className="bg-white text-purple-600 px-3 py-1 rounded text-xs font-medium"
+                            >
+                              Ajouter
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {aiRecommendations && aiRecommendations.insights && (
+                    <div className="mt-3 text-white text-sm opacity-90">
+                      💡 {aiRecommendations.insights}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {categories.map((category) => (
                     <button
