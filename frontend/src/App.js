@@ -866,6 +866,25 @@ function ClientInterface() {
     }
   };
 
+  const loadAIRecommendations = async () => {
+    setLoadingRecommendations(true);
+    try {
+      const response = await axios.post(`${API}/ai/recommendations`, {
+        user_id: user.id,
+        preferences: {
+          dietary_restrictions: [],
+          cuisine_preferences: [],
+          price_range: 'medium'
+        }
+      });
+      setAiRecommendations(response.data.recommendations);
+    } catch (error) {
+      console.error('Erreur recommandations IA:', error);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
   const addToCart = (item) => {
     const existingItem = cart.find(cartItem => cartItem.id === item.id);
     if (existingItem) {
