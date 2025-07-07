@@ -838,6 +838,8 @@ function ClientInterface() {
   const [tables, setTables] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState([]);
+  const [aiRecommendations, setAiRecommendations] = useState(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const { user, logout } = React.useContext(AuthContext);
 
   useEffect(() => {
