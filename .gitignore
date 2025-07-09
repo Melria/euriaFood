@@ -1,5 +1,15 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# 🔒 SECURITY - NEVER COMMIT THESE!
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+api_keys.txt
+secrets.json
+credentials.json
+
 # IDE and editors
 .idea/
 .vscode/

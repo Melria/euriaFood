@@ -73,14 +73,18 @@ pip install tzdata>=2024.2
 ```
 
 #### Configuration Variables d'Environnement Backend
-Créer `/backend/.env`:
+
+⚠️ **SÉCURITÉ IMPORTANTE**: Ne jamais committer vos clés API dans Git!
+
+**Méthode 1: Fichier .env local (Développement)**
+Créer `/backend/.env` (déjà dans .gitignore):
 ```env
 # Base de données
 MONGO_URL="mongodb://localhost:27017"
 DB_NAME="restaurant_ai_db"
 
 # IA (OBLIGATOIRE pour fonctionnalités intelligentes)
-OPENAI_API_KEY="sk-proj-VOTRE_CLE_OPENAI_ICI"
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Sécurité
 SECRET_KEY="votre-cle-secrete-tres-complexe-ici"
@@ -89,6 +93,34 @@ ALGORITHM="HS256"
 # Environnement
 ENVIRONMENT="development"
 DEBUG=true
+```
+
+**Méthode 2: Variables d'environnement système (Recommandé)**
+```bash
+# Windows PowerShell
+$env:OPENAI_API_KEY = "sk-proj-votre-cle-ici"
+$env:DATABASE_URL = "mongodb://localhost:27017"
+
+# Windows CMD
+set OPENAI_API_KEY=sk-proj-votre-cle-ici
+set DATABASE_URL=mongodb://localhost:27017
+
+# Linux/Mac
+export OPENAI_API_KEY="sk-proj-votre-cle-ici"
+export DATABASE_URL="mongodb://localhost:27017"
+```
+
+**Méthode 3: Profil PowerShell permanent (Windows)**
+```powershell
+# Ouvrir profil PowerShell
+notepad $PROFILE
+
+# Ajouter ces lignes:
+$env:OPENAI_API_KEY = "sk-proj-votre-cle-ici"
+$env:DATABASE_URL = "mongodb://localhost:27017"
+
+# Recharger le profil
+. $PROFILE
 ```
 
 ### 3. Configuration Frontend (React)
@@ -152,22 +184,179 @@ brew services start mongodb     # Mac
 3. Récupérer string de connexion
 4. Modifier `MONGO_URL` dans `.env`
 
-### 5. Obtention Clé OpenAI
+### 5. Configuration Sécurisée des Clés API
 
-#### Créer Compte OpenAI
-1. Aller sur https://platform.openai.com
-2. Créer compte et vérifier email
-3. Aller dans API Keys
-4. Créer nouvelle clé API
-5. Copier la clé (format: `sk-proj-...` ou `sk-...`)
-6. Ajouter dans `/backend/.env`:
-```env
-OPENAI_API_KEY="sk-proj-VOTRE_CLE_ICI"
+#### 🔐 Méthodes Sécurisées pour OpenAI API Key
+
+**⚠️ ATTENTION**: Ne jamais mettre votre clé API directement dans le code!
+
+#### Option 1: Variables d'Environnement Système (Recommandé)
+
+**Windows PowerShell:**
+```powershell
+# Définir temporairement (session actuelle)
+$env:OPENAI_API_KEY = "sk-proj-votre-cle-openai-ici"
+
+# Définir de façon permanente
+[Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-proj-votre-cle-ici", "User")
+
+# Vérifier
+echo $env:OPENAI_API_KEY
 ```
 
-⚠️ **Important**: La clé OpenAI est OBLIGATOIRE pour les fonctionnalités IA.
+**Windows CMD:**
+```cmd
+# Définir temporairement
+set OPENAI_API_KEY=sk-proj-votre-cle-openai-ici
+
+# Définir de façon permanente
+setx OPENAI_API_KEY "sk-proj-votre-cle-openai-ici"
+```
+
+**Linux/Mac:**
+```bash
+# Temporaire (session actuelle)
+export OPENAI_API_KEY="sk-proj-votre-cle-openai-ici"
+
+# Permanent (ajouter à ~/.bashrc ou ~/.zshrc)
+echo 'export OPENAI_API_KEY="sk-proj-votre-cle-openai-ici"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### Option 2: Fichier .env local avec .gitignore
+
+1. **Créer `.env` dans `/backend/`:**
+```env
+OPENAI_API_KEY=sk-proj-votre-cle-openai-ici
+DATABASE_URL=mongodb://localhost:27017
+```
+
+2. **Vérifier que `.env` est dans `.gitignore`:**
+```gitignore
+# Fichiers de configuration sensibles
+.env
+.env.local
+.env.production
+*.env
+
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+__pycache__/
+```
+
+#### Option 3: Azure Key Vault / AWS Secrets Manager (Production)
+
+**Azure Key Vault:**
+```python
+from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential
+
+credential = DefaultAzureCredential()
+client = SecretClient(vault_url="https://your-vault.vault.azure.net/", credential=credential)
+
+openai_key = client.get_secret("openai-api-key").value
+```
+
+**AWS Secrets Manager:**
+```python
+import boto3
+
+client = boto3.client('secretsmanager', region_name='us-east-1')
+response = client.get_secret_value(SecretId='openai-api-key')
+openai_key = response['SecretString']
+```
+
+#### Option 4: Invite Interactive (Développement)
+
+**Modifier `config.py` pour demander la clé:**
+```python
+import os
+import getpass
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def get_openai_api_key():
+    """Récupère la clé OpenAI de manière sécurisée"""
+    # 1. Essayer variables d'environnement
+    api_key = os.environ.get('OPENAI_API_KEY')
+    
+    if api_key:
+        return api_key
+    
+    # 2. Essayer fichier .env
+    if os.path.exists('.env'):
+        load_dotenv()
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if api_key:
+            return api_key
+    
+    # 3. Demander interactivement (développement seulement)
+    if os.environ.get('ENVIRONMENT') == 'development':
+        print("⚠️  Clé OpenAI non trouvée dans les variables d'environnement")
+        api_key = getpass.getpass("Entrez votre clé OpenAI API: ")
+        if api_key:
+            return api_key
+    
+    raise ValueError("OPENAI_API_KEY non trouvée. Configurez-la dans les variables d'environnement.")
+```
+
+#### 🛡️ Bonnes Pratiques de Sécurité
+
+1. **Ne jamais committer les clés:**
+```bash
+# Vérifier ce qui va être commité
+git status
+git diff --cached
+
+# Supprimer fichier déjà commité par accident
+git rm --cached .env
+git commit -m "Remove .env from tracking"
+```
+
+2. **Utiliser des clés différentes par environnement:**
+```env
+# Développement
+OPENAI_API_KEY=sk-proj-dev-key-here
+
+# Production  
+OPENAI_API_KEY=sk-proj-prod-key-here
+```
+
+3. **Rotation régulière des clés:**
+- Changer la clé tous les 3-6 mois
+- Utiliser OpenAI Dashboard pour révoquer anciennes clés
+
+4. **Monitoring d'utilisation:**
+```python
+# Ajouter logging des appels API
+logger.info(f"API call made for user: {user_id}")
+logger.info(f"Tokens used: {response.usage.total_tokens}")
+```
 
 ## 🚀 Lancement de l'Application
+
+### Configuration Rapide (Recommandé)
+
+**Script de Configuration Automatique:**
+```bash
+cd backend
+
+# Lancer le script de configuration
+python setup_environment.py
+
+# Le script vous guidera pour:
+# 1. Configurer votre clé OpenAI de manière sécurisée
+# 2. Choisir la méthode de stockage (système ou .env)
+# 3. Valider la configuration
+# 4. Configurer .gitignore automatiquement
+```
+
+### Démarrage Manuel
 
 ### Démarrage Backend
 ```bash
