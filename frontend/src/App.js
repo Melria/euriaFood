@@ -1,15 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  ShoppingCart, 
+  User, 
+  LogOut, 
+  Plus, 
+  Minus, 
+  Star,
+  CreditCard,
+  Banknote,
+  Download,
+  Edit,
+  Trash2,
+  Eye,
+  BarChart3,
+  Users,
+  Package,
+  Calendar,
+  Bell,
+  Heart,
+  X
+} from 'lucide-react';
 import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Configuration Stripe
+const stripePromise = loadStripe('pk_test_51234567890abcdef'); // Remplacer par votre clé publique
 
-// Context for auth
-const AuthContext = React.createContext();
+// Configuration API
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const api = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// Main App Component
-function App() {
+// Intercepteur pour ajouter le token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Context pour l'authentification
+const AuthContext = createContext();
+const useAuth = () => useContext(AuthContext);
+
+// Context pour le panier
+const CartContext = createContext();
+const useCart = () => useContext(CartContext);
+
+// Composant d'authentification
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,1260 +66,1141 @@ function App() {
     const userData = localStorage.getItem('user');
     if (token && userData) {
       setUser(JSON.parse(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API}/auth/login`, { email, password });
+      const response = await api.post('/auth/login', { email, password });
       const { access_token, user: userData } = response.data;
       
       localStorage.setItem('token', access_token);
       localStorage.setItem('user', JSON.stringify(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(userData);
       
-      return { success: true };
+      toast.success('Connexion réussie !');
+      return userData;
     } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Erreur de connexion' };
+      toast.error('Erreur de connexion');
+      throw error;
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, role = 'client') => {
     try {
-      await axios.post(`${API}/auth/register`, { name, email, password, role: 'client' });
-      return { success: true };
+      await api.post('/auth/register', { name, email, password, role });
+      toast.success('Inscription réussie ! Vous pouvez maintenant vous connecter.');
     } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Erreur d\'inscription' };
+      toast.error('Erreur lors de l\'inscription');
+      throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    toast.success('Déconnexion réussie');
   };
+
+  return (
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Composant pour le panier
+function CartProvider({ children }) {
+  const [cartItems, setCartItems] = useState([]);
+
+  const addToCart = (item) => {
+    setCartItems(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        return prev.map(i => 
+          i.id === item.id 
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        );
+      }
+      return [...prev, { ...item, quantity: 1 }];
+    });
+    toast.success('Article ajouté au panier');
+  };
+
+  const removeFromCart = (itemId) => {
+    setCartItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const updateQuantity = (itemId, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+    setCartItems(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  const getTotal = () => {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  return (
+    <CartContext.Provider value={{
+      cartItems,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      getTotal
+    }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+// Composant de connexion
+function LoginForm() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: ''
+  });
+  const { login, register } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (isLogin) {
+        const userData = await login(formData.email, formData.password);
+        navigate(userData.role === 'admin' ? '/admin' : '/menu');
+      } else {
+        await register(formData.name, formData.email, formData.password);
+        setIsLogin(true);
+        setFormData({ name: '', email: '', password: '' });
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen auth-container flex items-center justify-center p-4">
+      <div className="auth-form">
+        <h2 className="text-2xl font-bold text-center mb-6">
+          {isLogin ? 'Connexion' : 'Inscription'}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <input
+              type="text"
+              placeholder="Nom complet"
+              className="auth-input"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              required
+            />
+          )}
+          
+          <input
+            type="email"
+            placeholder="Email"
+            className="auth-input"
+            value={formData.email}
+            onChange={(e) => setFormData({...formData, email: e.target.value})}
+            required
+          />
+          
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            className="auth-input"
+            value={formData.password}
+            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            required
+          />
+          
+          <button type="submit" className="auth-button">
+            {isLogin ? 'Se connecter' : 'S\'inscrire'}
+          </button>
+        </form>
+        
+        <p className="text-center mt-4">
+          {isLogin ? 'Pas de compte ?' : 'Déjà un compte ?'}
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-orange-600 ml-2 hover:underline"
+          >
+            {isLogin ? 'S\'inscrire' : 'Se connecter'}
+          </button>
+        </p>
+        
+        {isLogin && (
+          <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
+            <p><strong>Compte admin :</strong></p>
+            <p>Email: admin@restaurant.com</p>
+            <p>Mot de passe: admin123</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Composant Header
+function Header() {
+  const { user, logout } = useAuth();
+  const { cartItems } = useCart();
+  const navigate = useNavigate();
+
+  return (
+    <header className="client-header">
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <Link to={user?.role === 'admin' ? '/admin' : '/menu'} className="text-2xl font-bold text-orange-600">
+          🍽️ Restaurant IA
+        </Link>
+        
+        <div className="flex items-center space-x-4">
+          {user?.role !== 'admin' && (
+            <button
+              onClick={() => navigate('/cart')}
+              className="relative p-2 text-gray-600 hover:text-orange-600"
+            >
+              <ShoppingCart size={24} />
+              {cartItems.length > 0 && (
+                <span className="cart-badge">
+                  {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              )}
+            </button>
+          )}
+          
+          <div className="flex items-center space-x-2">
+            <User size={20} />
+            <span>{user?.name}</span>
+          </div>
+          
+          <button
+            onClick={logout}
+            className="p-2 text-gray-600 hover:text-red-600"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// Composant Menu Client
+function MenuPage() {
+  const [menuItems, setMenuItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { addToCart } = useCart();
+
+  useEffect(() => {
+    fetchMenu();
+    fetchCategories();
+  }, []);
+
+  const fetchMenu = async () => {
+    try {
+      const response = await api.get('/menu');
+      setMenuItems(response.data);
+    } catch (error) {
+      toast.error('Erreur lors du chargement du menu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/menu/categories');
+      setCategories(response.data.categories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const filteredItems = selectedCategory 
+    ? menuItems.filter(item => item.category === selectedCategory)
+    : menuItems;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600"></div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
       </div>
     );
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      <div className="min-h-screen bg-gray-50">
-        {!user ? (
-          <AuthScreen />
-        ) : user.role === 'admin' ? (
-          <AdminDashboard />
-        ) : (
-          <ClientInterface />
-        )}
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Notre Menu</h1>
+      
+      {/* Filtres par catégorie */}
+      <div className="flex flex-wrap gap-2 mb-8">
+        <button
+          onClick={() => setSelectedCategory('')}
+          className={`px-4 py-2 rounded-lg ${
+            !selectedCategory ? 'menu-category-active' : 'bg-gray-200 hover:bg-gray-300'
+          }`}
+        >
+          Tous
+        </button>
+        {categories.map(category => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            className={`px-4 py-2 rounded-lg ${
+              selectedCategory === category ? 'menu-category-active' : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+          >
+            {category}
+          </button>
+        ))}
       </div>
-    </AuthContext.Provider>
-  );
-}
-
-// Auth Screen Component
-function AuthScreen() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login, register } = React.useContext(AuthContext);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
-    try {
-      if (isLogin) {
-        const result = await login(formData.email, formData.password);
-        if (!result.success) {
-          setMessage(result.error);
-        }
-      } else {
-        const result = await register(formData.name, formData.email, formData.password);
-        if (result.success) {
-          setMessage('Inscription réussie ! Vous pouvez maintenant vous connecter.');
-          setIsLogin(true);
-          setFormData({ name: '', email: '', password: '' });
-        } else {
-          setMessage(result.error);
-        }
-      }
-    } catch (error) {
-      setMessage('Une erreur est survenue');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-400 to-red-600">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">🍽️ Restaurant</h1>
-          <p className="text-gray-600">Système de gestion intelligent</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nom complet</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              required
+      
+      {/* Grille des articles */}
+      <div className="menu-grid">
+        {filteredItems.map(item => (
+          <div key={item.id} className="menu-item-card">
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className="w-full h-48 object-cover"
             />
+            <div className="p-4">
+              <h3 className="text-xl font-semibold mb-2">{item.name}</h3>
+              <p className="text-gray-600 mb-4">{item.description}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold text-orange-600">
+                  {item.price.toFixed(2)} €
+                </span>
+                <button
+                  onClick={() => addToCart(item)}
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <Plus size={16} />
+                  <span>Ajouter</span>
+                </button>
+              </div>
+            </div>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Traitement...' : (isLogin ? 'Se connecter' : 'S\'inscrire')}
-          </button>
-        </form>
-
-        {message && (
-          <div className={`mt-4 p-3 rounded-lg text-sm ${
-            message.includes('réussie') 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {message}
-          </div>
-        )}
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-orange-600 hover:text-orange-700 text-sm"
-          >
-            {isLogin ? "Pas encore de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
-          </button>
-        </div>
-
-        <div className="mt-4 text-center text-xs text-gray-500">
-          <p>Compte admin de test: admin@restaurant.com / admin123</p>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// Admin Dashboard Component
-function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [stats, setStats] = useState({});
-  const [orders, setOrders] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const { user, logout } = React.useContext(AuthContext);
+// Composant Panier
+function CartPage() {
+  const { cartItems, updateQuantity, removeFromCart, getTotal, clearCart } = useCart();
+  const [showPayment, setShowPayment] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    loadAdminData();
-  }, []);
-
-  const loadAdminData = async () => {
-    try {
-      const [statsRes, ordersRes, menuRes, reservationsRes] = await Promise.all([
-        axios.get(`${API}/stats/dashboard`),
-        axios.get(`${API}/orders`),
-        axios.get(`${API}/menu`),
-        axios.get(`${API}/reservations`)
-      ]);
-
-      setStats(statsRes.data);
-      setOrders(ordersRes.data);
-      setMenuItems(menuRes.data);
-      setReservations(reservationsRes.data);
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      toast.error('Votre panier est vide');
+      return;
     }
+    setShowPayment(true);
   };
 
-  const updateOrderStatus = async (orderId, status) => {
-    try {
-      await axios.put(`${API}/orders/${orderId}/status?status=${status}`);
-      loadAdminData();
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour:', error);
-    }
-  };
+  if (cartItems.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+        <h1 className="text-3xl font-bold mb-8">Votre Panier</h1>
+        <p className="text-gray-600 mb-8">Votre panier est vide</p>
+        <button
+          onClick={() => navigate('/menu')}
+          className="btn-primary"
+        >
+          Voir le menu
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">🍽️ Admin Dashboard</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">Bienvenue, {user.name}</span>
-            <button
-              onClick={logout}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Déconnexion
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <nav className="w-64 bg-white shadow-sm h-screen">
-          <div className="p-4">
-            {[
-              { key: 'dashboard', label: '📊 Tableau de bord', icon: '📊' },
-              { key: 'orders', label: '📋 Commandes', icon: '📋' },
-              { key: 'menu', label: '🍽️ Menu', icon: '🍽️' },
-              { key: 'reservations', label: '📅 Réservations', icon: '📅' },
-              { key: 'ai-insights', label: '🤖 IA Insights', icon: '🤖' },
-              { key: 'ai-inventory', label: '📦 IA Stock', icon: '📦' },
-              { key: 'ai-pricing', label: '💎 IA Prix', icon: '💎' }
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`w-full text-left px-4 py-2 rounded-lg mb-2 transition-colors ${
-                  activeTab === tab.key
-                    ? 'bg-orange-100 text-orange-800'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <main className="flex-1 p-6">
-          {activeTab === 'dashboard' && (
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Commandes totales</p>
-                      <p className="text-2xl font-bold text-gray-800">{stats.total_orders || 0}</p>
-                    </div>
-                    <div className="bg-blue-100 p-3 rounded-full">
-                      <span className="text-2xl">📋</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Clients</p>
-                      <p className="text-2xl font-bold text-gray-800">{stats.total_users || 0}</p>
-                    </div>
-                    <div className="bg-green-100 p-3 rounded-full">
-                      <span className="text-2xl">👥</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Chiffre d'affaires</p>
-                      <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}€</p>
-                    </div>
-                    <div className="bg-yellow-100 p-3 rounded-full">
-                      <span className="text-2xl">💰</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Commandes aujourd'hui</p>
-                      <p className="text-2xl font-bold text-gray-800">{stats.today_orders || 0}</p>
-                    </div>
-                    <div className="bg-purple-100 p-3 rounded-full">
-                      <span className="text-2xl">📈</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section IA */}
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 mb-6">
-                <h3 className="text-xl font-bold text-white mb-4">🤖 Intelligence Artificielle</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button
-                    onClick={() => setActiveTab('ai-insights')}
-                    className="bg-white bg-opacity-20 text-white p-4 rounded-lg hover:bg-opacity-30 transition-colors"
-                  >
-                    <div className="text-2xl mb-2">🧠</div>
-                    <div className="font-medium">Insights IA</div>
-                    <div className="text-sm opacity-90">Analytics intelligents</div>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('ai-inventory')}
-                    className="bg-white bg-opacity-20 text-white p-4 rounded-lg hover:bg-opacity-30 transition-colors"
-                  >
-                    <div className="text-2xl mb-2">📦</div>
-                    <div className="font-medium">Prédiction Stock</div>
-                    <div className="text-sm opacity-90">Gestion intelligente</div>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('ai-pricing')}
-                    className="bg-white bg-opacity-20 text-white p-4 rounded-lg hover:bg-opacity-30 transition-colors"
-                  >
-                    <div className="text-2xl mb-2">💎</div>
-                    <div className="font-medium">Optimisation Prix</div>
-                    <div className="text-sm opacity-90">Prix intelligents</div>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Nouvelles sections IA */}
-          {activeTab === 'ai-insights' && <AIInsightsSection />}
-          {activeTab === 'ai-inventory' && <AIInventorySection />}
-          {activeTab === 'ai-pricing' && <AIPricingSection />}
-
-          {activeTab === 'orders' && (
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-800">Gestion des Commandes</h2>
-              </div>
-              <div className="p-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4">ID</th>
-                        <th className="text-left py-3 px-4">Total</th>
-                        <th className="text-left py-3 px-4">Statut</th>
-                        <th className="text-left py-3 px-4">Date</th>
-                        <th className="text-left py-3 px-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((order) => (
-                        <tr key={order.id} className="border-b">
-                          <td className="py-3 px-4">{order.id.slice(0, 8)}</td>
-                          <td className="py-3 px-4">{order.total}€</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                              order.status === 'preparing' ? 'bg-orange-100 text-orange-800' :
-                              order.status === 'ready' ? 'bg-green-100 text-green-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            {new Date(order.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <select
-                              value={order.status}
-                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                              className="px-2 py-1 border rounded text-sm"
-                            >
-                              <option value="pending">En attente</option>
-                              <option value="confirmed">Confirmée</option>
-                              <option value="preparing">Préparation</option>
-                              <option value="ready">Prête</option>
-                              <option value="delivered">Livrée</option>
-                            </select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'menu' && (
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-800">Gestion du Menu</h2>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {menuItems.map((item) => (
-                    <div key={item.id} className="border rounded-lg p-4">
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        className="w-full h-48 object-cover rounded-lg mb-4"
-                      />
-                      <h3 className="font-bold text-lg mb-2">{item.name}</h3>
-                      <p className="text-gray-600 text-sm mb-2">{item.description}</p>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-orange-600">{item.price}€</span>
-                        <span className="text-sm text-gray-500">{item.category}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'reservations' && (
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-800">Gestion des Réservations</h2>
-              </div>
-              <div className="p-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4">ID</th>
-                        <th className="text-left py-3 px-4">Table</th>
-                        <th className="text-left py-3 px-4">Date</th>
-                        <th className="text-left py-3 px-4">Invités</th>
-                        <th className="text-left py-3 px-4">Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reservations.map((reservation) => (
-                        <tr key={reservation.id} className="border-b">
-                          <td className="py-3 px-4">{reservation.id.slice(0, 8)}</td>
-                          <td className="py-3 px-4">{reservation.table_id}</td>
-                          <td className="py-3 px-4">
-                            {new Date(reservation.date).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4">{reservation.guests}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {reservation.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
-  );
-}
-
-// AI Components
-function AIInsightsSection() {
-  const [insights, setInsights] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const loadInsights = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API}/ai/insights`);
-      setInsights(response.data.insights);
-    } catch (error) {
-      console.error('Erreur insights IA:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-6 border-b">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-800">🧠 Insights Business IA</h2>
-          <button
-            onClick={loadInsights}
-            disabled={loading}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-          >
-            {loading ? 'Analyse...' : 'Analyser'}
-          </button>
-        </div>
-      </div>
-      <div className="p-6">
-        {insights ? (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-bold mb-4">📊 Insights Clés</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {insights.insights?.map((insight, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-center mb-2">
-                      <span className="text-lg mr-2">📈</span>
-                      <h4 className="font-bold">{insight.category}</h4>
-                      <span className={`ml-auto px-2 py-1 rounded text-xs ${
-                        insight.impact === 'high' ? 'bg-red-100 text-red-800' :
-                        insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {insight.impact}
-                      </span>
-                    </div>
-                    <p className="text-gray-600">{insight.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-4">💡 Recommandations IA</h3>
-              <div className="space-y-3">
-                {insights.recommendations?.map((rec, index) => (
-                  <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <span className="text-lg mr-3">💡</span>
-                      <p className="text-blue-800">{rec}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-4">🎯 Actions Prioritaires</h3>
-              <div className="space-y-2">
-                {insights.priority_actions?.map((action, index) => (
-                  <div key={index} className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                    <p className="text-orange-800 font-medium">{action}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🧠</div>
-            <p className="text-gray-600 mb-4">Analyse IA des performances business</p>
-            <p className="text-sm text-gray-500">Cliquez sur "Analyser" pour obtenir des insights intelligents</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AIInventorySection() {
-  const [forecast, setForecast] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadForecast = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API}/ai/inventory/forecast`, {
-        days_ahead: 7,
-        include_external_factors: true
-      });
-      setForecast(response.data.forecast);
-    } catch (error) {
-      console.error('Erreur prédiction stock:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAlerts = async () => {
-    try {
-      const response = await axios.get(`${API}/inventory/alerts`);
-      setAlerts(response.data.alerts);
-    } catch (error) {
-      console.error('Erreur alertes stock:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadAlerts();
-  }, []);
-
-  return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Votre Panier</h1>
+      
       <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-800">📦 Gestion Stock IA</h2>
+        {cartItems.map(item => (
+          <div key={item.id} className="cart-item">
+            <div className="flex items-center space-x-4">
+              <img
+                src={item.image_url}
+                alt={item.name}
+                className="w-16 h-16 object-cover rounded"
+              />
+              <div className="flex-1">
+                <h3 className="font-semibold">{item.name}</h3>
+                <p className="text-gray-600">{item.price.toFixed(2)} €</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                  className="p-1 rounded-full hover:bg-gray-200"
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="w-8 text-center">{item.quantity}</span>
+                <button
+                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                  className="p-1 rounded-full hover:bg-gray-200"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              
+              <span className="font-semibold">
+                {(item.price * item.quantity).toFixed(2)} €
+              </span>
+              
+              <button
+                onClick={() => removeFromCart(item.id)}
+                className="p-1 text-red-600 hover:bg-red-50 rounded"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+        
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-xl font-bold">Total: {getTotal().toFixed(2)} €</span>
+          </div>
+          
+          <div className="flex space-x-4">
             <button
-              onClick={loadForecast}
-              disabled={loading}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              onClick={clearCart}
+              className="btn-secondary"
             >
-              {loading ? 'Prédiction...' : 'Prédire Demande'}
+              Vider le panier
+            </button>
+            <button
+              onClick={handleCheckout}
+              className="btn-primary flex-1"
+            >
+              Passer commande
             </button>
           </div>
         </div>
-        <div className="p-6">
-          {forecast ? (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold mb-4">📈 Prédictions 7 jours</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {forecast.predictions?.map((pred, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <h4 className="font-bold mb-2">{pred.item_name}</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span>Demande prédite:</span>
-                          <span className="font-bold">{pred.predicted_demand}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Confiance:</span>
-                          <span className={`font-bold ${
-                            pred.confidence > 0.8 ? 'text-green-600' :
-                            pred.confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'
-                          }`}>
-                            {Math.round(pred.confidence * 100)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Tendance:</span>
-                          <span className={`font-bold ${
-                            pred.trend === 'croissant' ? 'text-green-600' :
-                            pred.trend === 'stable' ? 'text-blue-600' : 'text-red-600'
-                          }`}>
-                            {pred.trend}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {forecast.alerts && (
-                <div>
-                  <h3 className="text-lg font-bold mb-4">⚠️ Alertes IA</h3>
-                  <div className="space-y-2">
-                    {forecast.alerts.map((alert, index) => (
-                      <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className="text-yellow-800">{alert}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📦</div>
-              <p className="text-gray-600 mb-4">Prédiction intelligente des stocks</p>
-              <p className="text-sm text-gray-500">Utilise l'IA pour prédire la demande future</p>
-            </div>
-          )}
-        </div>
       </div>
-
-      {/* Alertes Stock */}
-      {alerts.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-bold text-gray-800">🚨 Alertes Stock Actuelles</h2>
-          </div>
-          <div className="p-6">
-            <div className="space-y-3">
-              {alerts.map((alert, index) => (
-                <div key={index} className={`border rounded-lg p-4 ${
-                  alert.priority === 'high' ? 'border-red-300 bg-red-50' :
-                  alert.priority === 'medium' ? 'border-yellow-300 bg-yellow-50' :
-                  'border-blue-300 bg-blue-50'
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{alert.message}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      alert.priority === 'high' ? 'bg-red-100 text-red-800' :
-                      alert.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {alert.priority}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      
+      {showPayment && (
+        <PaymentModal
+          total={getTotal()}
+          cartItems={cartItems}
+          onClose={() => setShowPayment(false)}
+          onSuccess={() => {
+            clearCart();
+            navigate('/orders');
+          }}
+        />
       )}
     </div>
   );
 }
 
-function AIPricingSection() {
-  const [optimization, setOptimization] = useState(null);
+// Composant Modal de Paiement
+function PaymentModal({ total, cartItems, onClose, onSuccess }) {
+  const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
 
-  const optimizePricing = async () => {
+  const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/ai/pricing/optimize`);
-      setOptimization(response.data.optimization);
+      // Créer la commande
+      const orderData = {
+        items: cartItems.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: total
+      };
+      
+      const orderResponse = await api.post('/orders', orderData);
+      const order = orderResponse.data;
+      
+      // Créer le paiement
+      const paymentData = {
+        amount: total,
+        currency: 'eur',
+        payment_method: paymentMethod,
+        order_id: order.id
+      };
+      
+      const paymentResponse = await api.post('/payments/create-intent', paymentData);
+      
+      if (paymentMethod === 'card') {
+        // Rediriger vers Stripe (simulation)
+        toast.success('Redirection vers le paiement sécurisé...');
+        setTimeout(() => {
+          toast.success('Paiement réussi !');
+          onSuccess();
+        }, 2000);
+      } else {
+        toast.success('Commande créée ! Paiement en espèces à effectuer.');
+        onSuccess();
+      }
+      
     } catch (error) {
-      console.error('Erreur optimisation prix:', error);
+      toast.error('Erreur lors du paiement');
+      console.error('Payment error:', error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-6 border-b">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-800">💎 Optimisation Prix IA</h2>
-          <button
-            onClick={optimizePricing}
-            disabled={loading}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-          >
-            {loading ? 'Optimisation...' : 'Optimiser Prix'}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Paiement</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
           </button>
         </div>
-      </div>
-      <div className="p-6">
-        {optimization ? (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-bold mb-4">💰 Prix Optimisés</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {optimization.optimized_prices?.map((item, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <h4 className="font-bold mb-3">{item.item_name}</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Prix actuel:</span>
-                        <span className="text-gray-600">{item.current_price}€</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Prix optimisé:</span>
-                        <span className="font-bold text-green-600">{item.optimized_price}€</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Changement:</span>
-                        <span className={`font-bold ${
-                          item.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {item.change}
-                        </span>
-                      </div>
-                      <div className="pt-2 border-t">
-                        <p className="text-sm text-gray-600">{item.reasoning}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-bold text-blue-800 mb-2">🎯 Raisonnement IA</h4>
-              <p className="text-blue-700">{optimization.reasoning}</p>
-            </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-bold text-green-800 mb-2">📈 Impact Attendu</h4>
-              <p className="text-green-700">{optimization.expected_impact}</p>
-            </div>
+        
+        <div className="mb-6">
+          <p className="text-lg font-semibold">Total: {total.toFixed(2)} €</p>
+        </div>
+        
+        <div className="mb-6">
+          <p className="font-medium mb-3">Mode de paiement:</p>
+          <div className="space-y-2">
+            <label className="flex items-center space-x-3">
+              <input
+                type="radio"
+                value="card"
+                checked={paymentMethod === 'card'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="text-orange-600"
+              />
+              <CreditCard size={20} />
+              <span>Carte bancaire</span>
+            </label>
+            <label className="flex items-center space-x-3">
+              <input
+                type="radio"
+                value="cash"
+                checked={paymentMethod === 'cash'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="text-orange-600"
+              />
+              <Banknote size={20} />
+              <span>Espèces</span>
+            </label>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">💎</div>
-            <p className="text-gray-600 mb-4">Optimisation intelligente des prix</p>
-            <p className="text-sm text-gray-500">L'IA analyse le marché et optimise vos prix pour maximiser les profits</p>
-          </div>
-        )}
+        </div>
+        
+        <div className="flex space-x-4">
+          <button
+            onClick={onClose}
+            className="btn-secondary flex-1"
+            disabled={loading}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handlePayment}
+            className="btn-primary flex-1"
+            disabled={loading}
+          >
+            {loading ? 'Traitement...' : 'Confirmer'}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Client Interface Component
-function ClientInterface() {
-  const [activeTab, setActiveTab] = useState('menu');
-  const [menuItems, setMenuItems] = useState([]);
-  const [cart, setCart] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const [tables, setTables] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [categories, setCategories] = useState([]);
-  const [aiRecommendations, setAiRecommendations] = useState(null);
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-  const { user, logout } = React.useContext(AuthContext);
+// Composant Dashboard Admin
+function AdminDashboard() {
+  const [stats, setStats] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadClientData();
+    fetchStats();
   }, []);
 
-  const loadClientData = async () => {
+  const fetchStats = async () => {
     try {
-      const [menuRes, ordersRes, reservationsRes, tablesRes, categoriesRes] = await Promise.all([
-        axios.get(`${API}/menu`),
-        axios.get(`${API}/orders`),
-        axios.get(`${API}/reservations`),
-        axios.get(`${API}/tables`),
-        axios.get(`${API}/menu/categories`)
-      ]);
-
-      setMenuItems(menuRes.data);
-      setOrders(ordersRes.data);
-      setReservations(reservationsRes.data);
-      setTables(tablesRes.data);
-      setCategories(['all', ...categoriesRes.data.categories]);
+      const response = await api.get('/stats/dashboard');
+      setStats(response.data);
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-    }
-  };
-
-  const loadAIRecommendations = async () => {
-    setLoadingRecommendations(true);
-    try {
-      const response = await axios.post(`${API}/ai/recommendations`, {
-        user_id: user.id,
-        preferences: {
-          dietary_restrictions: [],
-          cuisine_preferences: [],
-          price_range: 'medium'
-        }
-      });
-      setAiRecommendations(response.data.recommendations);
-    } catch (error) {
-      console.error('Erreur recommandations IA:', error);
+      toast.error('Erreur lors du chargement des statistiques');
     } finally {
-      setLoadingRecommendations(false);
+      setLoading(false);
     }
   };
 
-  const addToCart = (item) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
-    if (existingItem) {
-      setCart(cart.map(cartItem =>
-        cartItem.id === item.id
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
-          : cartItem
-      ));
-    } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
-    }
-  };
-
-  const removeFromCart = (itemId) => {
-    setCart(cart.filter(item => item.id !== itemId));
-  };
-
-  const updateQuantity = (itemId, quantity) => {
-    if (quantity === 0) {
-      removeFromCart(itemId);
-    } else {
-      setCart(cart.map(item =>
-        item.id === itemId ? { ...item, quantity } : item
-      ));
-    }
-  };
-
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
-
-  const placeOrder = async () => {
+  const downloadDailyReport = async () => {
     try {
-      const orderItems = cart.map(item => ({
-        menu_item_id: item.id,
-        quantity: item.quantity,
-        price: item.price
-      }));
-
-      await axios.post(`${API}/orders`, {
-        items: orderItems,
-        total: getCartTotal()
+      const response = await api.get('/reports/daily', {
+        responseType: 'blob'
       });
-
-      setCart([]);
-      loadClientData();
-      alert('Commande passée avec succès !');
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `rapport_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Rapport téléchargé !');
     } catch (error) {
-      console.error('Erreur lors de la commande:', error);
-      alert('Erreur lors de la commande');
+      toast.error('Erreur lors du téléchargement');
     }
   };
 
-  const filteredMenuItems = selectedCategory === 'all' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === selectedCategory);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">🍽️ Restaurant Client</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">Bienvenue, {user.name}</span>
-            <div className="relative">
-              <button
-                onClick={() => setActiveTab('cart')}
-                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
-              >
-                🛒 Panier ({cart.length})
-              </button>
-            </div>
-            <button
-              onClick={logout}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Déconnexion
-            </button>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Dashboard Administrateur</h1>
+        <button
+          onClick={downloadDailyReport}
+          className="btn-primary flex items-center space-x-2"
+        >
+          <Download size={16} />
+          <span>Rapport journalier</span>
+        </button>
+      </div>
+      
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="dashboard-card">
+          <div className="dashboard-label">Commandes totales</div>
+          <div className="dashboard-stat">{stats.total_orders || 0}</div>
         </div>
-      </header>
-
-      <div className="flex">
-        <nav className="w-64 bg-white shadow-sm h-screen">
-          <div className="p-4">
-            {[
-              { key: 'menu', label: '🍽️ Menu', icon: '🍽️' },
-              { key: 'cart', label: '🛒 Panier', icon: '🛒' },
-              { key: 'orders', label: '📋 Mes Commandes', icon: '📋' },
-              { key: 'reservations', label: '📅 Réservations', icon: '📅' }
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`w-full text-left px-4 py-2 rounded-lg mb-2 transition-colors ${
-                  activeTab === tab.key
-                    ? 'bg-orange-100 text-orange-800'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <div className="dashboard-card">
+          <div className="dashboard-label">Clients</div>
+          <div className="dashboard-stat">{stats.total_users || 0}</div>
+        </div>
+        <div className="dashboard-card">
+          <div className="dashboard-label">Chiffre d'affaires</div>
+          <div className="dashboard-stat">{(stats.total_revenue || 0).toFixed(2)} €</div>
+        </div>
+        <div className="dashboard-card">
+          <div className="dashboard-label">Commandes aujourd'hui</div>
+          <div className="dashboard-stat">{stats.today_orders || 0}</div>
+        </div>
+      </div>
+      
+      {/* Navigation rapide */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Link to="/admin/orders" className="dashboard-card hover:shadow-lg">
+          <div className="flex items-center space-x-4">
+            <BarChart3 size={32} className="text-orange-600" />
+            <div>
+              <h3 className="text-lg font-semibold">Gestion des Commandes</h3>
+              <p className="text-gray-600">Suivi et mise à jour des commandes</p>
+            </div>
           </div>
-        </nav>
-
-        <main className="flex-1 p-6">
-          {activeTab === 'menu' && (
+        </Link>
+        
+        <Link to="/admin/menu" className="dashboard-card hover:shadow-lg">
+          <div className="flex items-center space-x-4">
+            <Package size={32} className="text-orange-600" />
             <div>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Notre Menu</h2>
-                
-                {/* Recommandations IA */}
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <div className="text-white">
-                      <h3 className="text-lg font-bold mb-1">🤖 Recommandations IA pour vous</h3>
-                      <p className="text-sm opacity-90">Sélections personnalisées basées sur vos goûts</p>
-                    </div>
-                    <button
-                      onClick={loadAIRecommendations}
-                      disabled={loadingRecommendations}
-                      className="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50"
-                    >
-                      {loadingRecommendations ? 'Analyse...' : 'Obtenir Recommandations'}
-                    </button>
-                  </div>
-                  
-                  {aiRecommendations && (
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {aiRecommendations.recommended_items?.map((item, index) => (
-                        <div key={index} className="bg-white bg-opacity-20 rounded-lg p-3">
-                          <h4 className="text-white font-bold">{item.name}</h4>
-                          <p className="text-white text-sm opacity-90">{item.reason}</p>
-                          <div className="flex justify-between items-center mt-2">
-                            <span className="text-white text-xs">
-                              Confiance: {Math.round(item.confidence_score * 100)}%
-                            </span>
-                            <button 
-                              onClick={() => {
-                                const menuItem = menuItems.find(m => m.name === item.name);
-                                if (menuItem) addToCart(menuItem);
-                              }}
-                              className="bg-white text-purple-600 px-3 py-1 rounded text-xs font-medium"
-                            >
-                              Ajouter
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {aiRecommendations && aiRecommendations.insights && (
-                    <div className="mt-3 text-white text-sm opacity-90">
-                      💡 {aiRecommendations.insights}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
-                      className={`px-4 py-2 rounded-lg capitalize transition-colors ${
-                        selectedCategory === category
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {category === 'all' ? 'Tous' : category}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredMenuItems.map((item) => (
-                  <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="p-4">
-                      <h3 className="font-bold text-lg mb-2">{item.name}</h3>
-                      <p className="text-gray-600 text-sm mb-3">{item.description}</p>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-orange-600">{item.price}€</span>
-                        <button
-                          onClick={() => addToCart(item)}
-                          className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
-                        >
-                          Ajouter
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-lg font-semibold">Gestion du Menu</h3>
+              <p className="text-gray-600">Ajouter, modifier, supprimer des articles</p>
             </div>
-          )}
-
-          {activeTab === 'cart' && (
+          </div>
+        </Link>
+        
+        <Link to="/admin/tables" className="dashboard-card hover:shadow-lg">
+          <div className="flex items-center space-x-4">
+            <Calendar size={32} className="text-orange-600" />
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Mon Panier</h2>
-              {cart.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600">Votre panier est vide</p>
-                  <button
-                    onClick={() => setActiveTab('menu')}
-                    className="mt-4 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors"
-                  >
-                    Voir le Menu
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm">
-                  <div className="p-6">
-                    {cart.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between border-b py-4">
-                        <div className="flex items-center space-x-4">
-                          <img
-                            src={item.image_url}
-                            alt={item.name}
-                            className="w-16 h-16 object-cover rounded-lg"
-                          />
-                          <div>
-                            <h3 className="font-bold">{item.name}</h3>
-                            <p className="text-gray-600">{item.price}€</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="w-8 h-8 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          >
-                            -
-                          </button>
-                          <span className="w-8 text-center">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="w-8 h-8 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          >
-                            +
-                          </button>
-                          <button
-                            onClick={() => removeFromCart(item.id)}
-                            className="ml-4 text-red-600 hover:text-red-800"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="mt-6 pt-4 border-t">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-xl font-bold">Total: {getCartTotal().toFixed(2)}€</span>
-                      </div>
-                      <button
-                        onClick={placeOrder}
-                        className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition-colors"
-                      >
-                        Passer la commande
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <h3 className="text-lg font-semibold">Gestion des Tables</h3>
+              <p className="text-gray-600">Configuration des tables et réservations</p>
             </div>
-          )}
-
-          {activeTab === 'orders' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Mes Commandes</h2>
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div key={order.id} className="bg-white rounded-lg shadow-sm p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-bold text-lg">Commande #{order.id.slice(0, 8)}</h3>
-                        <p className="text-gray-600">{new Date(order.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-3 py-1 rounded-full text-sm ${
-                          order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                          order.status === 'preparing' ? 'bg-orange-100 text-orange-800' :
-                          order.status === 'ready' ? 'bg-green-100 text-green-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {order.status}
-                        </span>
-                        <p className="text-xl font-bold mt-2">{order.total}€</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {order.items.map((item, index) => (
-                        <div key={index} className="flex justify-between text-sm">
-                          <span>{item.quantity}x Article</span>
-                          <span>{item.price}€</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'reservations' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Mes Réservations</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h3 className="font-bold text-lg mb-4">Nouvelle Réservation</h3>
-                  <form className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Table</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
-                        <option value="">Sélectionner une table</option>
-                        {tables.filter(table => table.status === 'available').map((table) => (
-                          <option key={table.id} value={table.id}>
-                            Table {table.number} ({table.seats} places)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                      <input
-                        type="datetime-local"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre d'invités</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      Réserver
-                    </button>
-                  </form>
-                </div>
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h3 className="font-bold text-lg mb-4">Réservations Existantes</h3>
-                  <div className="space-y-3">
-                    {reservations.map((reservation) => (
-                      <div key={reservation.id} className="border rounded-lg p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">Table {reservation.table_id}</p>
-                            <p className="text-sm text-gray-600">
-                              {new Date(reservation.date).toLocaleDateString()}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {reservation.guests} invités
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {reservation.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
+          </div>
+        </Link>
       </div>
     </div>
   );
+}
+
+// Composant Gestion des Commandes Admin
+function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await api.get('/orders');
+      setOrders(response.data);
+    } catch (error) {
+      toast.error('Erreur lors du chargement des commandes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      await api.put(`/orders/${orderId}/status?status=${status}`);
+      toast.success('Statut mis à jour');
+      fetchOrders();
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour');
+    }
+  };
+
+  const downloadInvoice = async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}/invoice`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `facture_${orderId.slice(0, 8)}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Facture téléchargée !');
+    } catch (error) {
+      toast.error('Erreur lors du téléchargement');
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: 'badge-pending',
+      confirmed: 'badge-confirmed',
+      preparing: 'badge-preparing',
+      ready: 'badge-ready',
+      delivered: 'badge-delivered'
+    };
+    return `badge ${badges[status] || 'badge-pending'}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Gestion des Commandes</h1>
+      
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="table-responsive">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Client</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(order => (
+                <tr key={order.id}>
+                  <td>#{order.id.slice(0, 8)}</td>
+                  <td>{new Date(order.created_at).toLocaleDateString()}</td>
+                  <td>{order.user_id}</td>
+                  <td>{order.total.toFixed(2)} €</td>
+                  <td>
+                    <span className={getStatusBadge(order.status)}>
+                      {order.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="flex space-x-2">
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                        className="text-sm border rounded px-2 py-1"
+                      >
+                        <option value="pending">En attente</option>
+                        <option value="confirmed">Confirmée</option>
+                        <option value="preparing">En préparation</option>
+                        <option value="ready">Prête</option>
+                        <option value="delivered">Livrée</option>
+                      </select>
+                      <button
+                        onClick={() => downloadInvoice(order.id)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Télécharger facture"
+                      >
+                        <Download size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Composant Gestion du Menu Admin
+function AdminMenu() {
+  const [menuItems, setMenuItems] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMenu();
+  }, []);
+
+  const fetchMenu = async () => {
+    try {
+      const response = await api.get('/menu');
+      setMenuItems(response.data);
+    } catch (error) {
+      toast.error('Erreur lors du chargement du menu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteItem = async (itemId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/menu/${itemId}`);
+      toast.success('Article supprimé');
+      fetchMenu();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Gestion du Menu</h1>
+        <button
+          onClick={() => setShowForm(true)}
+          className="btn-primary flex items-center space-x-2"
+        >
+          <Plus size={16} />
+          <span>Ajouter un article</span>
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {menuItems.map(item => (
+          <div key={item.id} className="food-card">
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className="w-full h-48 object-cover"
+            />
+            <div className="p-4">
+              <h3 className="text-xl font-semibold mb-2">{item.name}</h3>
+              <p className="text-gray-600 mb-2">{item.description}</p>
+              <p className="text-sm text-gray-500 mb-4">Catégorie: {item.category}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold text-orange-600">
+                  {item.price.toFixed(2)} €
+                </span>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      setEditingItem(item);
+                      setShowForm(true);
+                    }}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => deleteItem(item.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {showForm && (
+        <MenuItemForm
+          item={editingItem}
+          onClose={() => {
+            setShowForm(false);
+            setEditingItem(null);
+          }}
+          onSuccess={() => {
+            setShowForm(false);
+            setEditingItem(null);
+            fetchMenu();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Composant Formulaire Article Menu
+function MenuItemForm({ item, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    name: item?.name || '',
+    description: item?.description || '',
+    price: item?.price || '',
+    category: item?.category || '',
+    image_url: item?.image_url || '',
+    available: item?.available ?? true
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const data = {
+        ...formData,
+        price: parseFloat(formData.price)
+      };
+      
+      if (item) {
+        await api.put(`/menu/${item.id}`, data);
+        toast.success('Article mis à jour');
+      } else {
+        await api.post('/menu', data);
+        toast.success('Article ajouté');
+      }
+      
+      onSuccess();
+    } catch (error) {
+      toast.error('Erreur lors de la sauvegarde');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">
+            {item ? 'Modifier l\'article' : 'Ajouter un article'}
+          </h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="form-group">
+            <label className="form-label">Nom</label>
+            <input
+              type="text"
+              className="form-control"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea
+              className="form-control"
+              rows="3"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Prix (€)</label>
+            <input
+              type="number"
+              step="0.01"
+              className="form-control"
+              value={formData.price}
+              onChange={(e) => setFormData({...formData, price: e.target.value})}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Catégorie</label>
+            <select
+              className="form-control"
+              value={formData.category}
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+              required
+            >
+              <option value="">Sélectionner une catégorie</option>
+              <option value="Entrées">Entrées</option>
+              <option value="Plats">Plats</option>
+              <option value="Desserts">Desserts</option>
+              <option value="Boissons">Boissons</option>
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">URL de l'image</label>
+            <input
+              type="url"
+              className="form-control"
+              value={formData.image_url}
+              onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={formData.available}
+                onChange={(e) => setFormData({...formData, available: e.target.checked})}
+              />
+              <span>Disponible</span>
+            </label>
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-secondary flex-1"
+              disabled={loading}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="btn-primary flex-1"
+              disabled={loading}
+            >
+              {loading ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Composant principal de l'application
+function App() {
+  return (
+    <Elements stripe={stripePromise}>
+      <AuthProvider>
+        <CartProvider>
+          <Router>
+            <div className="App">
+              <Toaster position="top-right" />
+              <Routes>
+                <Route path="/login" element={<LoginForm />} />
+                <Route path="/" element={<ProtectedRoute><Navigate to="/menu" /></ProtectedRoute>} />
+                <Route path="/menu" element={<ProtectedRoute><Header /><MenuPage /></ProtectedRoute>} />
+                <Route path="/cart" element={<ProtectedRoute><Header /><CartPage /></ProtectedRoute>} />
+                <Route path="/admin" element={<AdminRoute><Header /><AdminDashboard /></AdminRoute>} />
+                <Route path="/admin/orders" element={<AdminRoute><Header /><AdminOrders /></AdminRoute>} />
+                <Route path="/admin/menu" element={<AdminRoute><Header /><AdminMenu /></AdminRoute>} />
+              </Routes>
+            </div>
+          </Router>
+        </CartProvider>
+      </AuthProvider>
+    </Elements>
+  );
+}
+
+// Composant de protection des routes
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
+      </div>
+    );
+  }
+  
+  return user ? children : <Navigate to="/login" />;
+}
+
+// Composant de protection des routes admin
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
+      </div>
+    );
+  }
+  
+  return user && user.role === 'admin' ? children : <Navigate to="/login" />;
 }
 
 export default App;
