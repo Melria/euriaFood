@@ -310,7 +310,7 @@ function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Chiffre d'affaires</p>
-                      <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}€</p>
+                      <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}FCFA</p>
                     </div>
                     <div className="bg-yellow-100 p-3 rounded-full">
                       <span className="text-2xl">💰</span>
@@ -390,7 +390,7 @@ function AdminDashboard() {
                       {orders.map((order) => (
                         <tr key={order.id} className="border-b">
                           <td className="py-3 px-4">{order.id.slice(0, 8)}</td>
-                          <td className="py-3 px-4">{order.total}€</td>
+                          <td className="py-3 px-4">{order.total}FCFA</td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -444,7 +444,7 @@ function AdminDashboard() {
                       <h3 className="font-bold text-lg mb-2">{item.name}</h3>
                       <p className="text-gray-600 text-sm mb-2">{item.description}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-orange-600">{item.price}€</span>
+                        <span className="text-xl font-bold text-orange-600">{item.price}FCFA</span>
                         <span className="text-sm text-gray-500">{item.category}</span>
                       </div>
                     </div>
@@ -783,11 +783,11 @@ function AIPricingSection() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>Prix actuel:</span>
-                        <span className="text-gray-600">{item.current_price}€</span>
+                        <span className="text-gray-600">{item.current_price}FCFA</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Prix optimisé:</span>
-                        <span className="font-bold text-green-600">{item.optimized_price}€</span>
+                        <span className="font-bold text-green-600">{item.optimized_price}FCFA</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Changement:</span>
@@ -840,6 +840,12 @@ function ClientInterface() {
   const [categories, setCategories] = useState([]);
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [reservationForm, setReservationForm] = useState({
+    table_id: '',
+    date: '',
+    guests: 1
+  });
+  const [submittingReservation, setSubmittingReservation] = useState(false);
   const { user, logout } = React.useContext(AuthContext);
 
   useEffect(() => {
@@ -935,6 +941,57 @@ function ClientInterface() {
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
       alert('Erreur lors de la commande');
+    }
+  };
+
+  const handleReservationSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingReservation(true);
+
+    try {
+      if (!reservationForm.table_id || !reservationForm.date || !reservationForm.guests) {
+        alert('Veuillez remplir tous les champs');
+        setSubmittingReservation(false);
+        return;
+      }
+
+      await axios.post(`${API}/reservations`, {
+        table_id: reservationForm.table_id,
+        date: reservationForm.date,
+        guests: parseInt(reservationForm.guests),
+        user_id: user.id
+      });
+
+      // Reset form
+      setReservationForm({
+        table_id: '',
+        date: '',
+        guests: 1
+      });
+
+      // Reload data
+      loadClientData();
+      alert('Réservation effectuée avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de la réservation:', error);
+      alert('Erreur lors de la réservation. Veuillez réessayer.');
+    } finally {
+      setSubmittingReservation(false);
+    }
+  };
+
+  const cancelReservation = async (reservationId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API}/reservations/${reservationId}`);
+      loadClientData();
+      alert('Réservation annulée avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation:', error);
+      alert('Erreur lors de l\'annulation de la réservation.');
     }
   };
 
@@ -1074,7 +1131,7 @@ function ClientInterface() {
                       <h3 className="font-bold text-lg mb-2">{item.name}</h3>
                       <p className="text-gray-600 text-sm mb-3">{item.description}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-orange-600">{item.price}€</span>
+                        <span className="text-xl font-bold text-orange-600">{item.price}FCFA</span>
                         <button
                           onClick={() => addToCart(item)}
                           className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
@@ -1115,7 +1172,7 @@ function ClientInterface() {
                           />
                           <div>
                             <h3 className="font-bold">{item.name}</h3>
-                            <p className="text-gray-600">{item.price}€</p>
+                            <p className="text-gray-600">{item.price}FCFA</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
@@ -1143,7 +1200,7 @@ function ClientInterface() {
                     ))}
                     <div className="mt-6 pt-4 border-t">
                       <div className="flex justify-between items-center mb-4">
-                        <span className="text-xl font-bold">Total: {getCartTotal().toFixed(2)}€</span>
+                        <span className="text-xl font-bold">Total: {getCartTotal().toFixed(2)}FCFA</span>
                       </div>
                       <button
                         onClick={placeOrder}
@@ -1179,14 +1236,14 @@ function ClientInterface() {
                         }`}>
                           {order.status}
                         </span>
-                        <p className="text-xl font-bold mt-2">{order.total}€</p>
+                        <p className="text-xl font-bold mt-2">{order.total}FCFA</p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       {order.items.map((item, index) => (
                         <div key={index} className="flex justify-between text-sm">
                           <span>{item.quantity}x Article</span>
-                          <span>{item.price}€</span>
+                          <span>{item.price}FCFA</span>
                         </div>
                       ))}
                     </div>
@@ -1202,10 +1259,15 @@ function ClientInterface() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <h3 className="font-bold text-lg mb-4">Nouvelle Réservation</h3>
-                  <form className="space-y-4">
+                  <form onSubmit={handleReservationSubmit} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Table</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                      <select 
+                        value={reservationForm.table_id}
+                        onChange={(e) => setReservationForm({ ...reservationForm, table_id: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        required
+                      >
                         <option value="">Sélectionner une table</option>
                         {tables.filter(table => table.status === 'available').map((table) => (
                           <option key={table.id} value={table.id}>
@@ -1215,10 +1277,14 @@ function ClientInterface() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date et heure</label>
                       <input
                         type="datetime-local"
+                        value={reservationForm.date}
+                        onChange={(e) => setReservationForm({ ...reservationForm, date: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        required
+                        min={new Date().toISOString().slice(0, 16)}
                       />
                     </div>
                     <div>
@@ -1227,14 +1293,18 @@ function ClientInterface() {
                         type="number"
                         min="1"
                         max="10"
+                        value={reservationForm.guests}
+                        onChange={(e) => setReservationForm({ ...reservationForm, guests: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        required
                       />
                     </div>
                     <button
                       type="submit"
-                      className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition-colors"
+                      disabled={submittingReservation}
+                      className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
                     >
-                      Réserver
+                      {submittingReservation ? 'Réservation en cours...' : 'Réserver'}
                     </button>
                   </form>
                 </div>
@@ -1247,22 +1317,38 @@ function ClientInterface() {
                           <div>
                             <p className="font-medium">Table {reservation.table_id}</p>
                             <p className="text-sm text-gray-600">
-                              {new Date(reservation.date).toLocaleDateString()}
+                              {new Date(reservation.date).toLocaleDateString()} à {new Date(reservation.date).toLocaleTimeString()}
                             </p>
                             <p className="text-sm text-gray-600">
-                              {reservation.guests} invités
+                              {reservation.guests} invité{reservation.guests > 1 ? 's' : ''}
                             </p>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {reservation.status}
-                          </span>
+                          <div className="flex flex-col items-end space-y-2">
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {reservation.status === 'pending' ? 'En attente' :
+                               reservation.status === 'confirmed' ? 'Confirmée' : 'Annulée'}
+                            </span>
+                            {reservation.status !== 'cancelled' && (
+                              <button
+                                onClick={() => cancelReservation(reservation.id)}
+                                className="text-red-600 hover:text-red-800 text-xs"
+                              >
+                                Annuler
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
+                    {reservations.length === 0 && (
+                      <div className="text-center py-6 text-gray-500">
+                        <p>Aucune réservation trouvée</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

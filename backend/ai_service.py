@@ -5,15 +5,25 @@ import asyncio
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import logging
+from config import validate_environment, get_openai_api_key
 
 logger = logging.getLogger(__name__)
 
 class AIService:
     def __init__(self):
-        # La clé sera ajoutée plus tard dans .env
-        openai.api_key = os.environ.get('OPENAI_API_KEY', 'your-openai-key-here')
+        # Validate environment and get API key
+        try:
+            validate_environment()
+            api_key = get_openai_api_key()
+        except ValueError as e:
+            logger.error(f"Environment configuration error: {e}")
+            raise
+        
+        # Initialize OpenAI client
+        self.client = openai.OpenAI(api_key=api_key)
+        logger.info("AI Service initialized successfully with OpenAI API")
     
-    async def generate_menu_recommendations(self, user_id: str, order_history: List, preferences: Dict = None):
+    async def generate_menu_recommendations(self, user_id: str, order_history: List, preferences: Optional[Dict] = None):
         """Génère des recommandations de menu personnalisées"""
         try:
             prompt = f"""
@@ -28,27 +38,41 @@ class AIService:
             - Gamme de prix
             - Fréquence de commande
             
-            Répondez en JSON avec: recommended_items (array avec name, reason, confidence_score), insights
+            Répondez UNIQUEMENT en JSON valide avec la structure suivante:
+            {{
+                "recommended_items": [
+                    {{
+                        "name": "nom du plat",
+                        "reason": "raison de la recommandation",
+                        "confidence_score": 0.XX
+                    }}
+                ],
+                "insights": "analyse du comportement client"
+            }}
             """
             
-            # Simulation de réponse IA (remplacer par vraie API OpenAI)
-            mock_response = {
-                "recommended_items": [
-                    {
-                        "name": "Burger Signature",
-                        "reason": "Basé sur vos commandes précédentes de burgers",
-                        "confidence_score": 0.92
-                    },
-                    {
-                        "name": "Salade Méditerranéenne", 
-                        "reason": "Équilibre avec vos préférences santé",
-                        "confidence_score": 0.87
-                    }
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Vous êtes un expert en recommandations culinaires. Répondez uniquement en JSON valide."},
+                    {"role": "user", "content": prompt}
                 ],
-                "insights": "Vous préférez les plats équilibrés avec une forte préférence pour les saveurs méditerranéennes."
-            }
+                temperature=0.7,
+                max_tokens=1000
+            )
             
-            return mock_response
+            response_text = response.choices[0].message.content
+            if response_text:
+                response_text = response_text.strip()
+            else:
+                logger.error("Empty response from OpenAI")
+                return {"error": "Empty response from AI"}
+            
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON response: {response_text}")
+                return {"error": "Invalid response format from AI"}
             
         except Exception as e:
             logger.error(f"Erreur recommandations: {e}")
@@ -68,42 +92,52 @@ class AIService:
             - Croissance/déclin des articles
             - Événements spéciaux
             
-            Répondez en JSON avec: predictions (array avec item_name, predicted_demand, confidence), alerts
+            Répondez UNIQUEMENT en JSON valide avec la structure suivante:
+            {{
+                "predictions": [
+                    {{
+                        "item_name": "nom de l'article",
+                        "predicted_demand": nombre_entier,
+                        "confidence": 0.XX,
+                        "trend": "stable/croissant/décroissant"
+                    }}
+                ],
+                "alerts": ["alerte 1", "alerte 2"]
+            }}
             """
             
-            # Simulation de prédiction IA
-            mock_prediction = {
-                "predictions": [
-                    {
-                        "item_name": "Burger Classic",
-                        "predicted_demand": 45,
-                        "confidence": 0.89,
-                        "trend": "stable"
-                    },
-                    {
-                        "item_name": "Salade César",
-                        "predicted_demand": 32,
-                        "confidence": 0.75,
-                        "trend": "croissant"
-                    }
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Vous êtes un expert en prédiction de demande. Répondez uniquement en JSON valide."},
+                    {"role": "user", "content": prompt}
                 ],
-                "alerts": [
-                    "Stock faible prévu pour Burger Classic - commander 50 unités",
-                    "Demande croissante pour salades - augmenter stock de 25%"
-                ]
-            }
+                temperature=0.3,
+                max_tokens=1000
+            )
             
-            return mock_prediction
+            response_text = response.choices[0].message.content
+            if response_text:
+                response_text = response_text.strip()
+            else:
+                logger.error("Empty response from OpenAI")
+                return {"error": "Empty response from AI"}
+            
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON response: {response_text}")
+                return {"error": "Invalid response format from AI"}
             
         except Exception as e:
             logger.error(f"Erreur prédiction inventaire: {e}")
             return {"error": str(e)}
     
-    async def optimize_pricing(self, menu_items: List, market_data: Dict = None):
+    async def optimize_pricing(self, menu_items: List, market_data: Optional[Dict] = None):
         """Optimisation intelligente des prix"""
         try:
             prompt = f"""
-            Optimisez les prix des articles de menu basé sur:
+            Optimisez les prix des articles de menu basé sur les données suivantes:
             
             Articles actuels: {json.dumps(menu_items, default=str)}
             Données marché: {json.dumps(market_data or {}, default=str)}
@@ -114,25 +148,44 @@ class AIService:
             - Attractivité client
             - Elasticité de la demande
             
-            Répondez en JSON avec: optimized_prices (array), reasoning, expected_impact
+            Répondez UNIQUEMENT en JSON valide avec la structure suivante:
+            {{
+                "optimized_prices": [
+                    {{
+                        "item_name": "nom de l'article",
+                        "current_price": prix_actuel,
+                        "optimized_price": nouveau_prix,
+                        "change": "pourcentage_changement",
+                        "reasoning": "raison du changement"
+                    }}
+                ],
+                "reasoning": "explication générale de l'optimisation",
+                "expected_impact": "impact attendu sur les ventes et profits"
+            }}
             """
             
-            # Simulation d'optimisation prix
-            mock_optimization = {
-                "optimized_prices": [
-                    {
-                        "item_name": "Burger Classic",
-                        "current_price": 12.90,
-                        "optimized_price": 13.50,
-                        "change": "+4.7%",
-                        "reasoning": "Demande élevée permet augmentation modérée"
-                    }
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Vous êtes un expert en stratégie de pricing. Répondez uniquement en JSON valide."},
+                    {"role": "user", "content": prompt}
                 ],
-                "reasoning": "Optimisation basée sur l'analyse de la demande et de la concurrence",
-                "expected_impact": "Augmentation estimée du profit de 8% avec impact minimal sur les ventes"
-            }
+                temperature=0.3,
+                max_tokens=1000
+            )
             
-            return mock_optimization
+            response_text = response.choices[0].message.content
+            if response_text:
+                response_text = response_text.strip()
+            else:
+                logger.error("Empty response from OpenAI")
+                return {"error": "Empty response from AI"}
+            
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON response: {response_text}")
+                return {"error": "Invalid response format from AI"}
             
         except Exception as e:
             logger.error(f"Erreur optimisation prix: {e}")
@@ -153,35 +206,42 @@ class AIService:
             - Tendances émergentes
             - Recommandations stratégiques
             
-            Répondez en JSON avec: insights (array), recommendations (array), priority_actions
+            Répondez UNIQUEMENT en JSON valide avec la structure suivante:
+            {{
+                "insights": [
+                    {{
+                        "category": "catégorie",
+                        "description": "description de l'insight",
+                        "impact": "high/medium/low"
+                    }}
+                ],
+                "recommendations": ["recommandation 1", "recommandation 2"],
+                "priority_actions": ["action prioritaire 1", "action prioritaire 2"]
+            }}
             """
             
-            # Simulation d'insights business
-            mock_insights = {
-                "insights": [
-                    {
-                        "category": "Ventes",
-                        "description": "Les ventes de burgers représentent 40% du CA avec une marge de 65%",
-                        "impact": "high"
-                    },
-                    {
-                        "category": "Clientèle", 
-                        "description": "Les clients reviennent en moyenne tous les 12 jours",
-                        "impact": "medium"
-                    }
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Vous êtes un expert en analyse business. Répondez uniquement en JSON valide."},
+                    {"role": "user", "content": prompt}
                 ],
-                "recommendations": [
-                    "Développer une offre de fidélité pour augmenter la fréquence",
-                    "Introduire des variantes de burgers premium",
-                    "Optimiser les heures d'ouverture selon les pics de commande"
-                ],
-                "priority_actions": [
-                    "Implémenter un programme de fidélité - Priorité haute",
-                    "Analyser la rentabilité par plat - Priorité moyenne"
-                ]
-            }
+                temperature=0.3,
+                max_tokens=1000
+            )
             
-            return mock_insights
+            response_text = response.choices[0].message.content
+            if response_text:
+                response_text = response_text.strip()
+            else:
+                logger.error("Empty response from OpenAI")
+                return {"error": "Empty response from AI"}
+            
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON response: {response_text}")
+                return {"error": "Invalid response format from AI"}
             
         except Exception as e:
             logger.error(f"Erreur insights business: {e}")
