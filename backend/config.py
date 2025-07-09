@@ -41,15 +41,33 @@ def get_openai_api_key():
         print("1. System environment: set OPENAI_API_KEY=your-key")
         print("2. .env file: OPENAI_API_KEY=your-key")
         print("3. Enter it now (development only):")
+        print("\n💡 Tips for pasting in terminal:")
+        print("   - Windows: Right-click to paste")
+        print("   - PowerShell: Ctrl+Shift+V or Right-click")
+        print("   - Linux/Mac: Ctrl+Shift+V or Cmd+V")
+        print("   - If paste doesn't work, type manually")
         
         try:
-            api_key = getpass.getpass("Enter your OpenAI API key: ").strip()
-            if api_key and api_key.startswith('sk-'):
+            # Try getpass first (hidden input)
+            api_key = getpass.getpass("Enter your OpenAI API key (input hidden): ").strip()
+            
+            # If getpass fails or user prefers visible input
+            if not api_key or len(api_key) < 10:
+                print("\n🔄 Switching to visible input mode...")
+                api_key = input("Enter your OpenAI API key (visible): ").strip()
+            
+            if api_key and api_key.startswith('sk-') and len(api_key) > 20:
+                print("✅ API key accepted")
                 return api_key
             else:
-                logger.error("Invalid OpenAI API key format. Must start with 'sk-'")
-        except KeyboardInterrupt:
+                logger.error("❌ Invalid OpenAI API key format. Must start with 'sk-' and be longer than 20 characters")
+                print("\n🚫 Alternative: Set the key in your environment:")
+                print(f"   Windows: setx OPENAI_API_KEY \"your-key-here\"")
+                print(f"   Linux/Mac: export OPENAI_API_KEY=\"your-key-here\"")
+                
+        except (KeyboardInterrupt, EOFError):
             logger.error("API key input cancelled by user")
+            print("\n🚫 Input cancelled. Please set OPENAI_API_KEY environment variable.")
     
     # If we reach here, no valid key was found
     raise ValueError(

@@ -1359,4 +1359,381 @@ function AdminMenu() {
   );
 }
 
+// Composants pour les sections IA
+function AIInsightsSection() {
+  const [insights, setInsights] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const generateInsights = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/ai/insights');
+      setInsights(response.data);
+      toast.success('Insights générés avec succès!');
+    } catch (error) {
+      toast.error('Erreur lors de la génération des insights');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-6 border-b">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">🧠 IA Insights</h2>
+          <button
+            onClick={generateInsights}
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Génération...' : 'Générer Insights'}
+          </button>
+        </div>
+      </div>
+      <div className="p-6">
+        {insights ? (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-bold text-blue-800 mb-2">📊 Analyse des Ventes</h4>
+              <p className="text-blue-700">{insights.sales_analysis}</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-bold text-green-800 mb-2">💡 Recommandations</h4>
+              <p className="text-green-700">{insights.recommendations}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🧠</div>
+            <p className="text-gray-600 mb-4">Génération d'insights intelligents</p>
+            <p className="text-sm text-gray-500">L'IA analyse vos données pour vous fournir des insights business</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AIInventorySection() {
+  const [predictions, setPredictions] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const generatePredictions = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/ai/inventory-prediction');
+      setPredictions(response.data);
+      toast.success('Prédictions générées avec succès!');
+    } catch (error) {
+      toast.error('Erreur lors de la génération des prédictions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-6 border-b">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">📦 Prédiction Stock IA</h2>
+          <button
+            onClick={generatePredictions}
+            disabled={loading}
+            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50"
+          >
+            {loading ? 'Prédiction...' : 'Prédire Stock'}
+          </button>
+        </div>
+      </div>
+      <div className="p-6">
+        {predictions ? (
+          <div className="space-y-4">
+            {predictions.predictions?.map((item, index) => (
+              <div key={index} className="border rounded-lg p-4">
+                <h4 className="font-bold mb-2">{item.item_name}</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-600">Stock actuel:</span>
+                    <p className="font-bold">{item.current_stock}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Stock prédit (7j):</span>
+                    <p className="font-bold text-orange-600">{item.predicted_stock}</p>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Recommandation:</span>
+                  <p className="text-sm">{item.recommendation}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📦</div>
+            <p className="text-gray-600 mb-4">Prédiction intelligente des stocks</p>
+            <p className="text-sm text-gray-500">L'IA prédit vos besoins en stock pour optimiser votre inventaire</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AIPricingSection() {
+  const [optimization, setOptimization] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const optimizePricing = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/ai/price-optimization');
+      setOptimization(response.data);
+      toast.success('Optimisation des prix générée avec succès!');
+    } catch (error) {
+      toast.error('Erreur lors de l\'optimisation des prix');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-6 border-b">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">💎 Optimisation Prix IA</h2>
+          <button
+            onClick={optimizePricing}
+            disabled={loading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Optimisation...' : 'Optimiser Prix'}
+          </button>
+        </div>
+      </div>
+      <div className="p-6">
+        {optimization ? (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-bold mb-4">💰 Prix Optimisés</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {optimization.optimized_prices?.map((item, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <h4 className="font-bold mb-3">{item.item_name}</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Prix actuel:</span>
+                        <span className="text-gray-600">{item.current_price}€</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Prix optimisé:</span>
+                        <span className="font-bold text-green-600">{item.optimized_price}€</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Changement:</span>
+                        <span className={`font-bold ${
+                          item.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {item.change}
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-gray-600">{item.reasoning}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-bold text-blue-800 mb-2">🎯 Raisonnement IA</h4>
+              <p className="text-blue-700">{optimization.reasoning}</p>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-bold text-green-800 mb-2">📈 Impact Attendu</h4>
+              <p className="text-green-700">{optimization.expected_impact}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">💎</div>
+            <p className="text-gray-600 mb-4">Optimisation intelligente des prix</p>
+            <p className="text-sm text-gray-500">L'IA analyse le marché et optimise vos prix pour maximiser les profits</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Composant principal App
+function App() {
+  return (
+    <Elements stripe={stripePromise}>
+      <AuthProvider>
+        <CartProvider>
+          <Router>
+            <div className="App">
+              <Toaster position="top-right" />
+              <Routes>
+                <Route path="/login" element={<PublicRoute><LoginForm /></PublicRoute>} />
+                <Route path="/menu" element={<PrivateRoute><MenuPage /></PrivateRoute>} />
+                <Route path="/cart" element={<PrivateRoute><CartPage /></PrivateRoute>} />
+                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+                <Route path="/admin/menu" element={<AdminRoute><AdminMenu /></AdminRoute>} />
+                <Route path="/" element={<Navigate to="/login" replace />} />
+              </Routes>
+            </div>
+          </Router>
+        </CartProvider>
+      </AuthProvider>
+    </Elements>
+  );
+}
+
+// Route Guards
+function PrivateRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg">Chargement...</div>
+    </div>;
+  }
+  
+  return user ? <><Header />{children}</> : <Navigate to="/login" />;
+}
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg">Chargement...</div>
+    </div>;
+  }
+  
+  return user?.role === 'admin' ? children : <Navigate to="/menu" />;
+}
+
+function PublicRoute({ children }) {
+  const { user } = useAuth();
+  return user ? <Navigate to={user.role === 'admin' ? '/admin' : '/menu'} /> : children;
+}
+
+// Composant CartPage manquant
+function CartPage() {
+  const { cartItems, removeFromCart, updateQuantity, clearCart, getTotal } = useCart();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center">
+          <ShoppingCart size={64} className="mx-auto text-gray-400 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Votre panier est vide</h2>
+          <p className="text-gray-600 mb-6">Ajoutez des articles depuis le menu</p>
+          <Link to="/menu" className="btn-primary">
+            Voir le menu
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Votre Panier</h1>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <div className="space-y-4">
+            {cartItems.map((item) => (
+              <div key={item.id} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg">{item.name}</h3>
+                    <p className="text-gray-600">{item.price}€ × {item.quantity}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="p-1 rounded-full hover:bg-gray-100"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="w-8 text-center">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="p-1 rounded-full hover:bg-gray-100"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => removeFromCart(item.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-full"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
+            <h3 className="text-xl font-bold mb-4">Résumé de la commande</h3>
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between">
+                <span>Sous-total</span>
+                <span>{getTotal().toFixed(2)} €</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                <span>Total</span>
+                <span>{getTotal().toFixed(2)} €</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="btn-primary w-full mb-2"
+            >
+              Procéder au paiement
+            </button>
+            <button
+              onClick={clearCart}
+              className="btn-secondary w-full"
+            >
+              Vider le panier
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showPaymentModal && (
+        <PaymentModal
+          total={getTotal()}
+          cartItems={cartItems}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={() => {
+            setShowPaymentModal(false);
+            clearCart();
+            toast.success('Commande passée avec succès !');
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 export default App;

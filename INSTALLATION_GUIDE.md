@@ -70,6 +70,8 @@ pip install requests>=2.31.0
 pip install cryptography>=42.0.8
 pip install email-validator>=2.2.0
 pip install tzdata>=2024.2
+pip install stripe>=5.0.0
+pip install reportlab>=4.0.0
 ```
 
 #### Configuration Variables d'Environnement Backend
@@ -342,6 +344,25 @@ logger.info(f"Tokens used: {response.usage.total_tokens}")
 
 ### Configuration Rapide (Recommandé)
 
+**⚡ Solution Rapide pour Windows:**
+```bash
+cd backend
+
+# Option 1: Script automatique (plus facile)
+set_api_key.bat
+
+# Option 2: PowerShell avancé  
+PowerShell -ExecutionPolicy Bypass -File set_api_key.ps1
+
+# Option 3: Script Python interactif
+python setup_environment.py
+```
+
+**💡 Si vous ne pouvez pas coller votre clé API dans le terminal:**
+1. Utilisez un des scripts ci-dessus (recommandé)
+2. Ou modifiez directement le fichier `.env`
+3. Ou définissez la variable système manuellement
+
 **Script de Configuration Automatique:**
 ```bash
 cd backend
@@ -431,6 +452,12 @@ Authentification:
 - pyjwt>=2.10.1             # JSON Web Tokens
 - passlib>=1.7.4            # Hashing mots de passe
 - bcrypt>=3.2.0             # Algorithme bcrypt
+
+Paiements:
+- stripe>=5.0.0             # Traitement des paiements
+
+Rapports et PDF:
+- reportlab>=4.0.0          # Génération de rapports PDF
 
 Intelligence Artificielle:
 - openai>=1.3.0             # API OpenAI GPT
@@ -608,6 +635,70 @@ mongo --eval "db.stats()"
 uvicorn server:app --log-level debug
 ```
 
+#### Modules Python Manquants
+
+**Symptôme**: `ModuleNotFoundError: No module named 'stripe'`, `'reportlab'`, ou autres modules
+
+**Solutions:**
+
+**1. Réinstaller toutes les dépendances:**
+```bash
+cd backend
+
+# Activer l'environnement virtuel
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# Installer/réinstaller toutes les dépendances
+pip install -r requirements.txt
+
+# Ou installer le module manquant spécifiquement
+pip install stripe>=5.0.0
+pip install reportlab>=4.0.0
+```
+
+**2. Vérifier l'environnement virtuel:**
+```bash
+# Vérifier que l'environnement est activé
+which python  # Linux/Mac
+where python  # Windows
+
+# Vérifier les modules installés
+pip list | grep stripe
+pip list | grep reportlab
+pip list | grep openai
+```
+
+**3. Installer manuellement les modules essentiels:**
+```bash
+# Modules critiques pour le fonctionnement
+pip install stripe>=5.0.0
+pip install reportlab>=4.0.0
+pip install openai>=1.3.0
+pip install fastapi==0.110.1
+pip install uvicorn==0.25.0
+pip install pymongo==4.5.0
+pip install motor==3.3.1
+pip install python-dotenv>=1.0.1
+```
+
+**4. Recréer l'environnement virtuel si nécessaire:**
+```bash
+# Supprimer l'ancien environnement
+rm -rf venv  # Linux/Mac
+rmdir /s venv  # Windows
+
+# Recréer l'environnement
+python -m venv venv
+
+# Activer
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+
+# Réinstaller tout
+pip install -r requirements.txt
+```
+
 #### Frontend ne se connecte pas
 ```bash
 # Vérifier URL backend
@@ -625,6 +716,66 @@ echo $OPENAI_API_KEY
 # Test API OpenAI
 curl https://api.openai.com/v1/models \
   -H "Authorization: Bearer $OPENAI_API_KEY"
+```
+
+#### Problème de Copier-Coller dans le Terminal
+
+**Symptôme**: Impossible de coller la clé API quand le backend demande la saisie
+
+**Solutions:**
+
+**1. Utiliser les scripts de configuration:**
+```bash
+# Windows Batch
+cd backend
+set_api_key.bat
+
+# Windows PowerShell
+cd backend
+PowerShell -ExecutionPolicy Bypass -File set_api_key.ps1
+
+# Script Python interactif
+python setup_environment.py
+```
+
+**2. Méthodes de collage par terminal:**
+```bash
+# Windows Command Prompt
+# - Clic droit pour coller
+# - Ou activer: Propriétés > Options > Mode d'édition rapide
+
+# PowerShell
+# - Ctrl+Shift+V
+# - Ou clic droit
+# - Ou Shift+Insert
+
+# Windows Terminal
+# - Ctrl+Shift+V
+# - Ou clic droit
+
+# Git Bash
+# - Shift+Insert
+# - Ou clic droit > Paste
+```
+
+**3. Définir directement l'environnement (Recommandé):**
+```powershell
+# PowerShell (méthode permanente)
+[Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-proj-votre-cle-ici", "User")
+
+# Redémarrer le terminal et vérifier
+echo $env:OPENAI_API_KEY
+```
+
+**4. Modification directe du fichier .env:**
+```bash
+# Ouvrir .env avec un éditeur
+notepad backend\.env
+
+# Remplacer la ligne:
+OPENAI_API_KEY=your_openai_api_key_here
+# Par:
+OPENAI_API_KEY=sk-proj-votre-cle-reelle-ici
 ```
 
 ### Logs et Monitoring
