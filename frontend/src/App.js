@@ -1,15 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  ShoppingCart, 
+  User, 
+  LogOut, 
+  Plus, 
+  Minus, 
+  Star,
+  CreditCard,
+  Banknote,
+  Download,
+  Edit,
+  Trash2,
+  Eye,
+  BarChart3,
+  Users,
+  Package,
+  Calendar,
+  Bell,
+  Heart,
+  X
+} from 'lucide-react';
 import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Configuration Stripe
+const stripePromise = loadStripe('pk_test_51234567890abcdef'); // Remplacer par votre clé publique
 
-// Context for auth
-const AuthContext = React.createContext();
+// Configuration API
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const api = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// Main App Component
-function App() {
+// Intercepteur pour ajouter le token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Context pour l'authentification
+const AuthContext = createContext();
+const useAuth = () => useContext(AuthContext);
+
+// Context pour le panier
+const CartContext = createContext();
+const useCart = () => useContext(CartContext);
+
+// Composant d'authentification
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,219 +66,276 @@ function App() {
     const userData = localStorage.getItem('user');
     if (token && userData) {
       setUser(JSON.parse(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API}/auth/login`, { email, password });
+      const response = await api.post('/auth/login', { email, password });
       const { access_token, user: userData } = response.data;
       
       localStorage.setItem('token', access_token);
       localStorage.setItem('user', JSON.stringify(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(userData);
       
-      return { success: true };
+      toast.success('Connexion réussie !');
+      return userData;
     } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Erreur de connexion' };
+      toast.error('Erreur de connexion');
+      throw error;
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, role = 'client') => {
     try {
-      await axios.post(`${API}/auth/register`, { name, email, password, role: 'client' });
-      return { success: true };
+      await api.post('/auth/register', { name, email, password, role });
+      toast.success('Inscription réussie ! Vous pouvez maintenant vous connecter.');
     } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Erreur d\'inscription' };
+      toast.error('Erreur lors de l\'inscription');
+      throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    toast.success('Déconnexion réussie');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600"></div>
-      </div>
-    );
-  }
-
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      <div className="min-h-screen bg-gray-50">
-        {!user ? (
-          <AuthScreen />
-        ) : user.role === 'admin' ? (
-          <AdminDashboard />
-        ) : (
-          <ClientInterface />
-        )}
-      </div>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
     </AuthContext.Provider>
   );
 }
 
-// Auth Screen Component
-function AuthScreen() {
+// Composant pour le panier
+function CartProvider({ children }) {
+  const [cartItems, setCartItems] = useState([]);
+
+  const addToCart = (item) => {
+    setCartItems(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        return prev.map(i => 
+          i.id === item.id 
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        );
+      }
+      return [...prev, { ...item, quantity: 1 }];
+    });
+    toast.success('Article ajouté au panier');
+  };
+
+  const removeFromCart = (itemId) => {
+    setCartItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const updateQuantity = (itemId, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+    setCartItems(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  const getTotal = () => {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  return (
+    <CartContext.Provider value={{
+      cartItems,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      getTotal
+    }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+// Composant de connexion
+function LoginForm() {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login, register } = React.useContext(AuthContext);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: ''
+  });
+  const { login, register } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
     try {
       if (isLogin) {
-        const result = await login(formData.email, formData.password);
-        if (!result.success) {
-          setMessage(result.error);
-        }
+        const userData = await login(formData.email, formData.password);
+        navigate(userData.role === 'admin' ? '/admin' : '/menu');
       } else {
-        const result = await register(formData.name, formData.email, formData.password);
-        if (result.success) {
-          setMessage('Inscription réussie ! Vous pouvez maintenant vous connecter.');
-          setIsLogin(true);
-          setFormData({ name: '', email: '', password: '' });
-        } else {
-          setMessage(result.error);
-        }
+        await register(formData.name, formData.email, formData.password);
+        setIsLogin(true);
+        setFormData({ name: '', email: '', password: '' });
       }
     } catch (error) {
-      setMessage('Une erreur est survenue');
-    } finally {
-      setLoading(false);
+      console.error('Auth error:', error);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-400 to-red-600">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">🍽️ Restaurant</h1>
-          <p className="text-gray-600">Système de gestion intelligent</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="min-h-screen auth-container flex items-center justify-center p-4">
+      <div className="auth-form">
+        <h2 className="text-2xl font-bold text-center mb-6">
+          {isLogin ? 'Connexion' : 'Inscription'}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nom complet</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Nom complet"
+              className="auth-input"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              required
+            />
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Traitement...' : (isLogin ? 'Se connecter' : 'S\'inscrire')}
+          
+          <input
+            type="email"
+            placeholder="Email"
+            className="auth-input"
+            value={formData.email}
+            onChange={(e) => setFormData({...formData, email: e.target.value})}
+            required
+          />
+          
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            className="auth-input"
+            value={formData.password}
+            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            required
+          />
+          
+          <button type="submit" className="auth-button">
+            {isLogin ? 'Se connecter' : 'S\'inscrire'}
           </button>
         </form>
-
-        {message && (
-          <div className={`mt-4 p-3 rounded-lg text-sm ${
-            message.includes('réussie') 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {message}
-          </div>
-        )}
-
-        <div className="mt-6 text-center">
+        
+        <p className="text-center mt-4">
+          {isLogin ? 'Pas de compte ?' : 'Déjà un compte ?'}
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-orange-600 hover:text-orange-700 text-sm"
+            className="text-orange-600 ml-2 hover:underline"
           >
-            {isLogin ? "Pas encore de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
+            {isLogin ? 'S\'inscrire' : 'Se connecter'}
           </button>
-        </div>
-
-        <div className="mt-4 text-center text-xs text-gray-500">
-          <p>Compte admin de test: admin@restaurant.com / admin123</p>
-        </div>
+        </p>
+        
+        {isLogin && (
+          <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
+            <p><strong>Compte admin :</strong></p>
+            <p>Email: admin@restaurant.com</p>
+            <p>Mot de passe: admin123</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// Admin Dashboard Component
-function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [stats, setStats] = useState({});
-  const [orders, setOrders] = useState([]);
+// Composant Header
+function Header() {
+  const { user, logout } = useAuth();
+  const { cartItems } = useCart();
+  const navigate = useNavigate();
+
+  return (
+    <header className="client-header">
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <Link to={user?.role === 'admin' ? '/admin' : '/menu'} className="text-2xl font-bold text-orange-600">
+          🍽️ Restaurant IA
+        </Link>
+        
+        <div className="flex items-center space-x-4">
+          {user?.role !== 'admin' && (
+            <button
+              onClick={() => navigate('/cart')}
+              className="relative p-2 text-gray-600 hover:text-orange-600"
+            >
+              <ShoppingCart size={24} />
+              {cartItems.length > 0 && (
+                <span className="cart-badge">
+                  {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              )}
+            </button>
+          )}
+          
+          <div className="flex items-center space-x-2">
+            <User size={20} />
+            <span>{user?.name}</span>
+          </div>
+          
+          <button
+            onClick={logout}
+            className="p-2 text-gray-600 hover:text-red-600"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// Composant Menu Client
+function MenuPage() {
   const [menuItems, setMenuItems] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const { user, logout } = React.useContext(AuthContext);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { addToCart } = useCart();
 
   useEffect(() => {
-    loadAdminData();
+    fetchMenu();
+    fetchCategories();
   }, []);
 
-  const loadAdminData = async () => {
+  const fetchMenu = async () => {
     try {
-      const [statsRes, ordersRes, menuRes, reservationsRes] = await Promise.all([
-        axios.get(`${API}/stats/dashboard`),
-        axios.get(`${API}/orders`),
-        axios.get(`${API}/menu`),
-        axios.get(`${API}/reservations`)
-      ]);
-
-      setStats(statsRes.data);
-      setOrders(ordersRes.data);
-      setMenuItems(menuRes.data);
-      setReservations(reservationsRes.data);
+      const response = await api.get('/menu');
+      setMenuItems(response.data);
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
+      toast.error('Erreur lors du chargement du menu');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateOrderStatus = async (orderId, status) => {
+  const fetchCategories = async () => {
     try {
-      await axios.put(`${API}/orders/${orderId}/status?status=${status}`);
-      loadAdminData();
+      const response = await api.get('/menu/categories');
+      setCategories(response.data.categories);
     } catch (error) {
-      console.error('Erreur lors de la mise à jour:', error);
+      console.error('Error fetching categories:', error);
     }
   };
 
@@ -310,7 +415,7 @@ function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Chiffre d'affaires</p>
-                      <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}FCFA</p>
+                      <p className="text-2xl font-bold text-gray-800">{stats.total_revenue || 0}€</p>
                     </div>
                     <div className="bg-yellow-100 p-3 rounded-full">
                       <span className="text-2xl">💰</span>
@@ -390,7 +495,7 @@ function AdminDashboard() {
                       {orders.map((order) => (
                         <tr key={order.id} className="border-b">
                           <td className="py-3 px-4">{order.id.slice(0, 8)}</td>
-                          <td className="py-3 px-4">{order.total}FCFA</td>
+                          <td className="py-3 px-4">{order.total}€</td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -444,7 +549,7 @@ function AdminDashboard() {
                       <h3 className="font-bold text-lg mb-2">{item.name}</h3>
                       <p className="text-gray-600 text-sm mb-2">{item.description}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-orange-600">{item.price}FCFA</span>
+                        <span className="text-xl font-bold text-orange-600">{item.price}€</span>
                         <span className="text-sm text-gray-500">{item.category}</span>
                       </div>
                     </div>
@@ -503,255 +608,252 @@ function AdminDashboard() {
   );
 }
 
-// AI Components
-function AIInsightsSection() {
-  const [insights, setInsights] = useState(null);
+// Composant Modal de Paiement
+function PaymentModal({ total, cartItems, onClose, onSuccess }) {
+  const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
 
-  const loadInsights = async () => {
+  const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/ai/insights`);
-      setInsights(response.data.insights);
+      // Créer la commande
+      const orderData = {
+        items: cartItems.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: total
+      };
+      
+      const orderResponse = await api.post('/orders', orderData);
+      const order = orderResponse.data;
+      
+      // Créer le paiement
+      const paymentData = {
+        amount: total,
+        currency: 'eur',
+        payment_method: paymentMethod,
+        order_id: order.id
+      };
+      
+      const paymentResponse = await api.post('/payments/create-intent', paymentData);
+      
+      if (paymentMethod === 'card') {
+        // Rediriger vers Stripe (simulation)
+        toast.success('Redirection vers le paiement sécurisé...');
+        setTimeout(() => {
+          toast.success('Paiement réussi !');
+          onSuccess();
+        }, 2000);
+      } else {
+        toast.success('Commande créée ! Paiement en espèces à effectuer.');
+        onSuccess();
+      }
+      
     } catch (error) {
-      console.error('Erreur insights IA:', error);
+      toast.error('Erreur lors du paiement');
+      console.error('Payment error:', error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-6 border-b">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-800">🧠 Insights Business IA</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Paiement</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="mb-6">
+          <p className="text-lg font-semibold">Total: {total.toFixed(2)} €</p>
+        </div>
+        
+        <div className="mb-6">
+          <p className="font-medium mb-3">Mode de paiement:</p>
+          <div className="space-y-2">
+            <label className="flex items-center space-x-3">
+              <input
+                type="radio"
+                value="card"
+                checked={paymentMethod === 'card'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="text-orange-600"
+              />
+              <CreditCard size={20} />
+              <span>Carte bancaire</span>
+            </label>
+            <label className="flex items-center space-x-3">
+              <input
+                type="radio"
+                value="cash"
+                checked={paymentMethod === 'cash'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="text-orange-600"
+              />
+              <Banknote size={20} />
+              <span>Espèces</span>
+            </label>
+          </div>
+        </div>
+        
+        <div className="flex space-x-4">
           <button
-            onClick={loadInsights}
+            onClick={onClose}
+            className="btn-secondary flex-1"
             disabled={loading}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
           >
-            {loading ? 'Analyse...' : 'Analyser'}
+            Annuler
+          </button>
+          <button
+            onClick={handlePayment}
+            className="btn-primary flex-1"
+            disabled={loading}
+          >
+            {loading ? 'Traitement...' : 'Confirmer'}
           </button>
         </div>
       </div>
-      <div className="p-6">
-        {insights ? (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-bold mb-4">📊 Insights Clés</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {insights.insights?.map((insight, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-center mb-2">
-                      <span className="text-lg mr-2">📈</span>
-                      <h4 className="font-bold">{insight.category}</h4>
-                      <span className={`ml-auto px-2 py-1 rounded text-xs ${
-                        insight.impact === 'high' ? 'bg-red-100 text-red-800' :
-                        insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {insight.impact}
-                      </span>
-                    </div>
-                    <p className="text-gray-600">{insight.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-4">💡 Recommandations IA</h3>
-              <div className="space-y-3">
-                {insights.recommendations?.map((rec, index) => (
-                  <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <span className="text-lg mr-3">💡</span>
-                      <p className="text-blue-800">{rec}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-4">🎯 Actions Prioritaires</h3>
-              <div className="space-y-2">
-                {insights.priority_actions?.map((action, index) => (
-                  <div key={index} className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                    <p className="text-orange-800 font-medium">{action}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🧠</div>
-            <p className="text-gray-600 mb-4">Analyse IA des performances business</p>
-            <p className="text-sm text-gray-500">Cliquez sur "Analyser" pour obtenir des insights intelligents</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
-function AIInventorySection() {
-  const [forecast, setForecast] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(false);
+// Composant Dashboard Admin
+function AdminDashboard() {
+  const [stats, setStats] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const loadForecast = async () => {
-    setLoading(true);
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
     try {
-      const response = await axios.post(`${API}/ai/inventory/forecast`, {
-        days_ahead: 7,
-        include_external_factors: true
-      });
-      setForecast(response.data.forecast);
+      const response = await api.get('/stats/dashboard');
+      setStats(response.data);
     } catch (error) {
-      console.error('Erreur prédiction stock:', error);
+      toast.error('Erreur lors du chargement des statistiques');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadAlerts = async () => {
+  const downloadDailyReport = async () => {
     try {
-      const response = await axios.get(`${API}/inventory/alerts`);
-      setAlerts(response.data.alerts);
+      const response = await api.get('/reports/daily', {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `rapport_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Rapport téléchargé !');
     } catch (error) {
-      console.error('Erreur alertes stock:', error);
+      toast.error('Erreur lors du téléchargement');
     }
   };
 
-  useEffect(() => {
-    loadAlerts();
-  }, []);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="spinner w-12 h-12"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-800">📦 Gestion Stock IA</h2>
-            <button
-              onClick={loadForecast}
-              disabled={loading}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Prédiction...' : 'Prédire Demande'}
-            </button>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Dashboard Administrateur</h1>
+        <button
+          onClick={downloadDailyReport}
+          className="btn-primary flex items-center space-x-2"
+        >
+          <Download size={16} />
+          <span>Rapport journalier</span>
+        </button>
+      </div>
+      
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="dashboard-card">
+          <div className="dashboard-label">Commandes totales</div>
+          <div className="dashboard-stat">{stats.total_orders || 0}</div>
         </div>
-        <div className="p-6">
-          {forecast ? (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold mb-4">📈 Prédictions 7 jours</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {forecast.predictions?.map((pred, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <h4 className="font-bold mb-2">{pred.item_name}</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span>Demande prédite:</span>
-                          <span className="font-bold">{pred.predicted_demand}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Confiance:</span>
-                          <span className={`font-bold ${
-                            pred.confidence > 0.8 ? 'text-green-600' :
-                            pred.confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'
-                          }`}>
-                            {Math.round(pred.confidence * 100)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Tendance:</span>
-                          <span className={`font-bold ${
-                            pred.trend === 'croissant' ? 'text-green-600' :
-                            pred.trend === 'stable' ? 'text-blue-600' : 'text-red-600'
-                          }`}>
-                            {pred.trend}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {forecast.alerts && (
-                <div>
-                  <h3 className="text-lg font-bold mb-4">⚠️ Alertes IA</h3>
-                  <div className="space-y-2">
-                    {forecast.alerts.map((alert, index) => (
-                      <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className="text-yellow-800">{alert}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📦</div>
-              <p className="text-gray-600 mb-4">Prédiction intelligente des stocks</p>
-              <p className="text-sm text-gray-500">Utilise l'IA pour prédire la demande future</p>
-            </div>
-          )}
+        <div className="dashboard-card">
+          <div className="dashboard-label">Clients</div>
+          <div className="dashboard-stat">{stats.total_users || 0}</div>
+        </div>
+        <div className="dashboard-card">
+          <div className="dashboard-label">Chiffre d'affaires</div>
+          <div className="dashboard-stat">{(stats.total_revenue || 0).toFixed(2)} €</div>
+        </div>
+        <div className="dashboard-card">
+          <div className="dashboard-label">Commandes aujourd'hui</div>
+          <div className="dashboard-stat">{stats.today_orders || 0}</div>
         </div>
       </div>
-
-      {/* Alertes Stock */}
-      {alerts.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-bold text-gray-800">🚨 Alertes Stock Actuelles</h2>
-          </div>
-          <div className="p-6">
-            <div className="space-y-3">
-              {alerts.map((alert, index) => (
-                <div key={index} className={`border rounded-lg p-4 ${
-                  alert.priority === 'high' ? 'border-red-300 bg-red-50' :
-                  alert.priority === 'medium' ? 'border-yellow-300 bg-yellow-50' :
-                  'border-blue-300 bg-blue-50'
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{alert.message}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      alert.priority === 'high' ? 'bg-red-100 text-red-800' :
-                      alert.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {alert.priority}
-                    </span>
-                  </div>
-                </div>
-              ))}
+      
+      {/* Navigation rapide */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Link to="/admin/orders" className="dashboard-card hover:shadow-lg">
+          <div className="flex items-center space-x-4">
+            <BarChart3 size={32} className="text-orange-600" />
+            <div>
+              <h3 className="text-lg font-semibold">Gestion des Commandes</h3>
+              <p className="text-gray-600">Suivi et mise à jour des commandes</p>
             </div>
           </div>
-        </div>
-      )}
+        </Link>
+        
+        <Link to="/admin/menu" className="dashboard-card hover:shadow-lg">
+          <div className="flex items-center space-x-4">
+            <Package size={32} className="text-orange-600" />
+            <div>
+              <h3 className="text-lg font-semibold">Gestion du Menu</h3>
+              <p className="text-gray-600">Ajouter, modifier, supprimer des articles</p>
+            </div>
+          </div>
+        </Link>
+        
+        <Link to="/admin/tables" className="dashboard-card hover:shadow-lg">
+          <div className="flex items-center space-x-4">
+            <Calendar size={32} className="text-orange-600" />
+            <div>
+              <h3 className="text-lg font-semibold">Gestion des Tables</h3>
+              <p className="text-gray-600">Configuration des tables et réservations</p>
+            </div>
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }
 
-function AIPricingSection() {
-  const [optimization, setOptimization] = useState(null);
-  const [loading, setLoading] = useState(false);
+// Composant Gestion des Commandes Admin
+function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const optimizePricing = async () => {
-    setLoading(true);
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
     try {
-      const response = await axios.post(`${API}/ai/pricing/optimize`);
-      setOptimization(response.data.optimization);
+      const response = await api.get('/orders');
+      setOrders(response.data);
     } catch (error) {
-      console.error('Erreur optimisation prix:', error);
+      toast.error('Erreur lors du chargement des commandes');
     } finally {
       setLoading(false);
     }
@@ -783,11 +885,11 @@ function AIPricingSection() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>Prix actuel:</span>
-                        <span className="text-gray-600">{item.current_price}FCFA</span>
+                        <span className="text-gray-600">{item.current_price}€</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Prix optimisé:</span>
-                        <span className="font-bold text-green-600">{item.optimized_price}FCFA</span>
+                        <span className="font-bold text-green-600">{item.optimized_price}€</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Changement:</span>
@@ -828,9 +930,8 @@ function AIPricingSection() {
   );
 }
 
-// Client Interface Component
-function ClientInterface() {
-  const [activeTab, setActiveTab] = useState('menu');
+// Composant Gestion du Menu Admin
+function AdminMenu() {
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -840,107 +941,34 @@ function ClientInterface() {
   const [categories, setCategories] = useState([]);
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-  const [reservationForm, setReservationForm] = useState({
-    table_id: '',
-    date: '',
-    guests: 1
-  });
-  const [submittingReservation, setSubmittingReservation] = useState(false);
   const { user, logout } = React.useContext(AuthContext);
 
   useEffect(() => {
-    loadClientData();
+    fetchMenu();
   }, []);
 
-  const loadClientData = async () => {
+  const fetchMenu = async () => {
     try {
-      const [menuRes, ordersRes, reservationsRes, tablesRes, categoriesRes] = await Promise.all([
-        axios.get(`${API}/menu`),
-        axios.get(`${API}/orders`),
-        axios.get(`${API}/reservations`),
-        axios.get(`${API}/tables`),
-        axios.get(`${API}/menu/categories`)
-      ]);
-
-      setMenuItems(menuRes.data);
-      setOrders(ordersRes.data);
-      setReservations(reservationsRes.data);
-      setTables(tablesRes.data);
-      setCategories(['all', ...categoriesRes.data.categories]);
+      const response = await api.get('/menu');
+      setMenuItems(response.data);
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-    }
-  };
-
-  const loadAIRecommendations = async () => {
-    setLoadingRecommendations(true);
-    try {
-      const response = await axios.post(`${API}/ai/recommendations`, {
-        user_id: user.id,
-        preferences: {
-          dietary_restrictions: [],
-          cuisine_preferences: [],
-          price_range: 'medium'
-        }
-      });
-      setAiRecommendations(response.data.recommendations);
-    } catch (error) {
-      console.error('Erreur recommandations IA:', error);
+      toast.error('Erreur lors du chargement du menu');
     } finally {
-      setLoadingRecommendations(false);
+      setLoading(false);
     }
   };
 
-  const addToCart = (item) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
-    if (existingItem) {
-      setCart(cart.map(cartItem =>
-        cartItem.id === item.id
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
-          : cartItem
-      ));
-    } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
+  const deleteItem = async (itemId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) {
+      return;
     }
-  };
-
-  const removeFromCart = (itemId) => {
-    setCart(cart.filter(item => item.id !== itemId));
-  };
-
-  const updateQuantity = (itemId, quantity) => {
-    if (quantity === 0) {
-      removeFromCart(itemId);
-    } else {
-      setCart(cart.map(item =>
-        item.id === itemId ? { ...item, quantity } : item
-      ));
-    }
-  };
-
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
-
-  const placeOrder = async () => {
+    
     try {
-      const orderItems = cart.map(item => ({
-        menu_item_id: item.id,
-        quantity: item.quantity,
-        price: item.price
-      }));
-
-      await axios.post(`${API}/orders`, {
-        items: orderItems,
-        total: getCartTotal()
-      });
-
-      setCart([]);
-      loadClientData();
-      alert('Commande passée avec succès !');
+      await api.delete(`/menu/${itemId}`);
+      toast.success('Article supprimé');
+      fetchMenu();
     } catch (error) {
-      console.error('Erreur lors de la commande:', error);
-      alert('Erreur lors de la commande');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
@@ -1131,7 +1159,7 @@ function ClientInterface() {
                       <h3 className="font-bold text-lg mb-2">{item.name}</h3>
                       <p className="text-gray-600 text-sm mb-3">{item.description}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-orange-600">{item.price}FCFA</span>
+                        <span className="text-xl font-bold text-orange-600">{item.price}€</span>
                         <button
                           onClick={() => addToCart(item)}
                           className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
@@ -1153,10 +1181,10 @@ function ClientInterface() {
                 <div className="text-center py-12">
                   <p className="text-gray-600">Votre panier est vide</p>
                   <button
-                    onClick={() => setActiveTab('menu')}
-                    className="mt-4 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors"
+                    onClick={() => deleteItem(item.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded"
                   >
-                    Voir le Menu
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ) : (
@@ -1172,7 +1200,7 @@ function ClientInterface() {
                           />
                           <div>
                             <h3 className="font-bold">{item.name}</h3>
-                            <p className="text-gray-600">{item.price}FCFA</p>
+                            <p className="text-gray-600">{item.price}€</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
@@ -1200,7 +1228,7 @@ function ClientInterface() {
                     ))}
                     <div className="mt-6 pt-4 border-t">
                       <div className="flex justify-between items-center mb-4">
-                        <span className="text-xl font-bold">Total: {getCartTotal().toFixed(2)}FCFA</span>
+                        <span className="text-xl font-bold">Total: {getCartTotal().toFixed(2)}€</span>
                       </div>
                       <button
                         onClick={placeOrder}
@@ -1236,14 +1264,14 @@ function ClientInterface() {
                         }`}>
                           {order.status}
                         </span>
-                        <p className="text-xl font-bold mt-2">{order.total}FCFA</p>
+                        <p className="text-xl font-bold mt-2">{order.total}€</p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       {order.items.map((item, index) => (
                         <div key={index} className="flex justify-between text-sm">
                           <span>{item.quantity}x Article</span>
-                          <span>{item.price}FCFA</span>
+                          <span>{item.price}€</span>
                         </div>
                       ))}
                     </div>
@@ -1259,15 +1287,10 @@ function ClientInterface() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <h3 className="font-bold text-lg mb-4">Nouvelle Réservation</h3>
-                  <form onSubmit={handleReservationSubmit} className="space-y-4">
+                  <form className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Table</label>
-                      <select 
-                        value={reservationForm.table_id}
-                        onChange={(e) => setReservationForm({ ...reservationForm, table_id: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        required
-                      >
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
                         <option value="">Sélectionner une table</option>
                         {tables.filter(table => table.status === 'available').map((table) => (
                           <option key={table.id} value={table.id}>
@@ -1277,14 +1300,10 @@ function ClientInterface() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date et heure</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
                       <input
                         type="datetime-local"
-                        value={reservationForm.date}
-                        onChange={(e) => setReservationForm({ ...reservationForm, date: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        required
-                        min={new Date().toISOString().slice(0, 16)}
                       />
                     </div>
                     <div>
@@ -1293,18 +1312,14 @@ function ClientInterface() {
                         type="number"
                         min="1"
                         max="10"
-                        value={reservationForm.guests}
-                        onChange={(e) => setReservationForm({ ...reservationForm, guests: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        required
                       />
                     </div>
                     <button
                       type="submit"
-                      disabled={submittingReservation}
-                      className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
+                      className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition-colors"
                     >
-                      {submittingReservation ? 'Réservation en cours...' : 'Réserver'}
+                      Réserver
                     </button>
                   </form>
                 </div>
@@ -1317,38 +1332,22 @@ function ClientInterface() {
                           <div>
                             <p className="font-medium">Table {reservation.table_id}</p>
                             <p className="text-sm text-gray-600">
-                              {new Date(reservation.date).toLocaleDateString()} à {new Date(reservation.date).toLocaleTimeString()}
+                              {new Date(reservation.date).toLocaleDateString()}
                             </p>
                             <p className="text-sm text-gray-600">
-                              {reservation.guests} invité{reservation.guests > 1 ? 's' : ''}
+                              {reservation.guests} invités
                             </p>
                           </div>
-                          <div className="flex flex-col items-end space-y-2">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {reservation.status === 'pending' ? 'En attente' :
-                               reservation.status === 'confirmed' ? 'Confirmée' : 'Annulée'}
-                            </span>
-                            {reservation.status !== 'cancelled' && (
-                              <button
-                                onClick={() => cancelReservation(reservation.id)}
-                                className="text-red-600 hover:text-red-800 text-xs"
-                              >
-                                Annuler
-                              </button>
-                            )}
-                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            reservation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {reservation.status}
+                          </span>
                         </div>
                       </div>
                     ))}
-                    {reservations.length === 0 && (
-                      <div className="text-center py-6 text-gray-500">
-                        <p>Aucune réservation trouvée</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
