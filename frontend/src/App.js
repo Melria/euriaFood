@@ -1159,11 +1159,17 @@ function App() {
               <Routes>
                 <Route path="/login" element={<LoginForm />} />
                 <Route path="/" element={<ProtectedRoute><Navigate to="/menu" /></ProtectedRoute>} />
+                }
                 <Route path="/menu" element={<ProtectedRoute><Header /><MenuPage /></ProtectedRoute>} />
+                }
                 <Route path="/cart" element={<ProtectedRoute><Header /><CartPage /></ProtectedRoute>} />
+                }
                 <Route path="/admin" element={<AdminRoute><Header /><AdminDashboard /></AdminRoute>} />
+                }
                 <Route path="/admin/orders" element={<AdminRoute><Header /><AdminOrders /></AdminRoute>} />
+                }
                 <Route path="/admin/menu" element={<AdminRoute><Header /><AdminMenu /></AdminRoute>} />
+                }
               </Routes>
             </div>
           </Router>
