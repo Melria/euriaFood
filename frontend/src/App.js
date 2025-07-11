@@ -1,49 +1,9 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import axios from 'axios';
-import { 
-  User, 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
-  X, 
-  Menu as MenuIcon, 
-  Home, 
-  Users, 
-  Package, 
-  BarChart3, 
-  Settings, 
-  LogOut,
-  Search,
-  Filter,
-  Calendar,
-  Clock,
-  MapPin,
-  Phone,
-  Mail,
-  Star,
-  Heart,
-  Download,
-  Edit,
-  Trash2,
-  Eye,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Loader,
-  CreditCard,
-  DollarSign,
-  TrendingUp,
-  ShoppingBag,
-  Coffee,
-  Utensils,
-  Wine,
-  Cookie
-} from 'lucide-react';
 import './App.css';
 
 // API Configuration
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -60,64 +20,77 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auth Context
+// Context for Authentication
 const AuthContext = createContext();
+const useAuth = () => useContext(AuthContext);
 
-function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Context for Cart
+const CartContext = createContext();
+const useCart = () => useContext(CartContext);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-    setLoading(false);
-  }, []);
+// Toast notifications
+const toast = {
+  success: (message) => {
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => document.body.removeChild(toast), 3000);
+  },
+  error: (message) => {
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => document.body.removeChild(toast), 3000);
+  },
+  info: (message) => {
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => document.body.removeChild(toast), 3000);
+  }
+};
 
-  const login = async (email, password) => {
-    try {
-      const response = await api.post('/api/auth/login', { email, password });
-      const { access_token, user: userData } = response.data;
-      
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-      
-      return userData;
-    } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Login failed');
-    }
-  };
-
-  const register = async (name, email, password, role = 'client') => {
-    try {
-      await api.post('/api/auth/register', { name, email, password, role });
-      return await login(email, password);
-    } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Registration failed');
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+// Loading Spinner Component
+const LoadingSpinner = ({ size = 'medium' }) => {
+  const sizeClasses = {
+    small: 'w-4 h-4',
+    medium: 'w-8 h-8',
+    large: 'w-12 h-12'
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
+    <div className={`animate-spin rounded-full border-b-2 border-orange-600 ${sizeClasses[size]}`}></div>
   );
-}
+};
 
-// Cart Context
-const CartContext = createContext();
+// Status Badge Component
+const StatusBadge = ({ status }) => {
+  const statusConfig = {
+    pending: { color: 'bg-yellow-100 text-yellow-800', icon: '⏳', text: 'En attente' },
+    confirmed: { color: 'bg-blue-100 text-blue-800', icon: '✅', text: 'Confirmé' },
+    preparing: { color: 'bg-orange-100 text-orange-800', icon: '👨‍🍳', text: 'En préparation' },
+    ready: { color: 'bg-green-100 text-green-800', icon: '🍽️', text: 'Prêt' },
+    delivered: { color: 'bg-gray-100 text-gray-800', icon: '📦', text: 'Livré' },
+    cancelled: { color: 'bg-red-100 text-red-800', icon: '❌', text: 'Annulé' }
+  };
 
-function CartProvider({ children }) {
+  const config = statusConfig[status] || statusConfig.pending;
+
+  return (
+    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+      <span className="mr-1">{config.icon}</span>
+      {config.text}
+    </span>
+  );
+};
+
+// Cart Provider
+const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const addToCart = (item) => {
     setCartItems(prev => {
@@ -131,6 +104,7 @@ function CartProvider({ children }) {
       }
       return [...prev, { ...item, quantity: 1 }];
     });
+    toast.success(`${item.name} ajouté au panier`);
   };
 
   const removeFromCart = (itemId) => {
@@ -155,12 +129,12 @@ function CartProvider({ children }) {
     setCartItems([]);
   };
 
-  const getCartTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const getTotalItems = () => {
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const getCartItemsCount = () => {
-    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  const getTotalPrice = () => {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
   return (
@@ -170,499 +144,563 @@ function CartProvider({ children }) {
       removeFromCart,
       updateQuantity,
       clearCart,
-      getCartTotal,
-      getCartItemsCount
+      getTotalItems,
+      getTotalPrice,
+      isCartOpen,
+      setIsCartOpen
     }}>
       {children}
     </CartContext.Provider>
   );
-}
+};
 
-// Utility Components
-function LoadingSpinner() {
-  return (
-    <div className="flex items-center justify-center p-8">
-      <Loader className="w-8 h-8 animate-spin text-orange-600" />
-    </div>
-  );
-}
+// Auth Provider
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-function StatusBadge({ status }) {
-  const statusConfig = {
-    pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-    confirmed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
-    preparing: { color: 'bg-orange-100 text-orange-800', icon: Coffee },
-    ready: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-    delivered: { color: 'bg-gray-100 text-gray-800', icon: CheckCircle },
-    cancelled: { color: 'bg-red-100 text-red-800', icon: XCircle },
-    available: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-    occupied: { color: 'bg-red-100 text-red-800', icon: XCircle },
-    reserved: { color: 'bg-yellow-100 text-yellow-800', icon: Clock }
-  };
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+    }
+    setLoading(false);
+  }, []);
 
-  const config = statusConfig[status] || statusConfig.pending;
-  const Icon = config.icon;
-
-  return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-      <Icon className="w-3 h-3 mr-1" />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
-}
-
-// Authentication Components
-function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { login, register } = useContext(AuthContext);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
+  const login = async (email, password) => {
     try {
-      if (isLogin) {
-        await login(formData.email, formData.password);
-      } else {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        await register(formData.name, formData.email, formData.password);
-      }
+      const response = await api.post('/api/auth/login', { email, password });
+      const { access_token, user: userData } = response.data;
+      
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      
+      toast.success('Connexion réussie !');
+      return userData;
     } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+      toast.error('Erreur de connexion');
+      throw error;
     }
   };
 
-  const handleChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+  const register = async (name, email, password, role = 'client') => {
+    try {
+      await api.post('/api/auth/register', { name, email, password, role });
+      toast.success('Inscription réussie ! Vous pouvez maintenant vous connecter.');
+      return true;
+    } catch (error) {
+      toast.error('Erreur lors de l\'inscription');
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    toast.info('Déconnexion réussie');
   };
 
   return (
-    <div className="min-h-screen auth-container flex items-center justify-center p-4">
-      <div className="auth-form">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Utensils className="w-12 h-12 text-orange-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Restaurant IA
-          </h1>
-          <p className="text-gray-600">
-            {isLogin ? 'Connectez-vous à votre compte' : 'Créez votre compte'}
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nom complet
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="Votre nom complet"
-                required={!isLogin}
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="auth-input"
-              placeholder="votre@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="auth-input"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirmer le mot de passe
-              </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="••••••••"
-                required={!isLogin}
-              />
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-button"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center">
-                <Loader className="w-4 h-4 animate-spin mr-2" />
-                {isLogin ? 'Connexion...' : 'Inscription...'}
-              </div>
-            ) : (
-              isLogin ? 'Se connecter' : 'S\'inscrire'
-            )}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-              setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-            }}
-            className="text-orange-600 hover:text-orange-700 text-sm font-medium"
-          >
-            {isLogin 
-              ? 'Pas de compte ? Inscrivez-vous' 
-              : 'Déjà un compte ? Connectez-vous'
-            }
-          </button>
-        </div>
-
-        {isLogin && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-700 font-medium mb-2">Comptes de test :</p>
-            <p className="text-xs text-blue-600">
-              <strong>Admin :</strong> admin@restaurant.com / admin123
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
   );
-}
+};
 
-// Client Components
-function ClientHeader() {
-  const { user, logout } = useContext(AuthContext);
-  const { getCartItemsCount } = useContext(CartContext);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+// Client Header Component
+const ClientHeader = () => {
+  const { user, logout } = useAuth();
+  const { getTotalItems, setIsCartOpen } = useCart();
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
-    <header className="client-header sticky top-0 z-50">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+        <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Utensils className="w-8 h-8 text-orange-600 mr-2" />
-            <span className="text-xl font-bold text-gray-800">Restaurant IA</span>
+            <h1 className="text-2xl font-bold text-orange-600">🍽️ Restaurant IA</h1>
           </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <a href="#home" className="text-gray-700 hover:text-orange-600 font-medium">
-              Accueil
-            </a>
-            <a href="#menu" className="text-gray-700 hover:text-orange-600 font-medium">
-              Menu
-            </a>
-            <a href="#orders" className="text-gray-700 hover:text-orange-600 font-medium">
-              Mes Commandes
-            </a>
-            <a href="#reservations" className="text-gray-700 hover:text-orange-600 font-medium">
-              Réservations
-            </a>
+          
+          <nav className="hidden md:flex space-x-8">
+            <a href="#home" className="text-gray-700 hover:text-orange-600 transition-colors">Accueil</a>
+            <a href="#menu" className="text-gray-700 hover:text-orange-600 transition-colors">Menu</a>
+            <a href="#orders" className="text-gray-700 hover:text-orange-600 transition-colors">Mes Commandes</a>
+            <a href="#reservations" className="text-gray-700 hover:text-orange-600 transition-colors">Réservations</a>
           </nav>
 
-          {/* User Actions */}
           <div className="flex items-center space-x-4">
-            {/* Cart */}
-            <button className="relative p-2 text-gray-700 hover:text-orange-600">
-              <ShoppingCart className="w-6 h-6" />
-              {getCartItemsCount() > 0 && (
-                <span className="cart-badge">
-                  {getCartItemsCount()}
+            {/* Cart Button */}
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2 text-gray-700 hover:text-orange-600 transition-colors"
+            >
+              <span className="text-2xl">🛒</span>
+              {getTotalItems() > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                  {getTotalItems()}
                 </span>
               )}
             </button>
 
             {/* User Menu */}
-            <div className="flex items-center space-x-2">
-              <User className="w-5 h-5 text-gray-600" />
-              <span className="text-sm text-gray-700">{user?.name}</span>
+            <div className="relative">
               <button
-                onClick={logout}
-                className="text-gray-500 hover:text-red-600"
-                title="Déconnexion"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2 text-gray-700 hover:text-orange-600 transition-colors"
               >
-                <LogOut className="w-4 h-4" />
+                <span className="text-2xl">👤</span>
+                <span className="hidden md:block">{user?.name}</span>
+                <span className="text-sm">▼</span>
               </button>
-            </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="md:hidden p-2 text-gray-700"
-            >
-              <MenuIcon className="w-6 h-6" />
-            </button>
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                    <div className="font-medium">{user?.name}</div>
+                    <div className="text-gray-500">{user?.email}</div>
+                  </div>
+                  <a href="#profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Mon Profil
+                  </a>
+                  <a href="#orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Mes Commandes
+                  </a>
+                  <a href="#reservations" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Mes Réservations
+                  </a>
+                  <button
+                    onClick={logout}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                  >
+                    Déconnexion
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {showMobileMenu && (
-          <div className="md:hidden border-t border-gray-200 py-4">
-            <nav className="flex flex-col space-y-2">
-              <a href="#home" className="px-4 py-2 text-gray-700 hover:bg-gray-50">
-                Accueil
-              </a>
-              <a href="#menu" className="px-4 py-2 text-gray-700 hover:bg-gray-50">
-                Menu
-              </a>
-              <a href="#orders" className="px-4 py-2 text-gray-700 hover:bg-gray-50">
-                Mes Commandes
-              </a>
-              <a href="#reservations" className="px-4 py-2 text-gray-700 hover:bg-gray-50">
-                Réservations
-              </a>
-            </nav>
-          </div>
-        )}
       </div>
     </header>
   );
-}
+};
 
-function ClientHomePage() {
-  const { user } = useContext(AuthContext);
+// Cart Modal Component
+const CartModal = () => {
+  const { cartItems, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, getTotalPrice, clearCart } = useCart();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  if (!isCartOpen) return null;
+
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      toast.error('Votre panier est vide');
+      return;
+    }
+    setShowPaymentModal(true);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ClientHeader />
-      
-      {/* Hero Section */}
-      <section className="restaurant-header text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl font-bold mb-6">
-            Bienvenue {user?.name} !
-          </h1>
-          <p className="text-xl mb-8 opacity-90">
-            Découvrez notre cuisine exceptionnelle avec des recommandations personnalisées par IA
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-white text-orange-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-              Voir le Menu
-            </button>
-            <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-orange-600 transition-colors">
-              Réserver une Table
-            </button>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setIsCartOpen(false)}>
+        <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-lg" onClick={e => e.stopPropagation()}>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Mon Panier</h2>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {cartItems.length === 0 ? (
+              <div className="text-center py-8">
+                <span className="text-6xl">🛒</span>
+                <p className="text-gray-500 mt-4">Votre panier est vide</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {cartItems.map(item => (
+                    <div key={item.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-medium">{item.name}</h3>
+                        <p className="text-orange-600 font-bold">{item.price.toFixed(2)} €</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="ml-2 text-red-500 hover:text-red-700"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-lg font-bold">Total:</span>
+                    <span className="text-xl font-bold text-orange-600">{getTotalPrice().toFixed(2)} €</span>
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleCheckout}
+                      className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition-colors"
+                    >
+                      Commander
+                    </button>
+                    <button
+                      onClick={clearCart}
+                      className="w-full bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      Vider le panier
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+        </div>
+      </div>
+
+      {showPaymentModal && (
+        <PaymentModal
+          cartItems={cartItems}
+          total={getTotalPrice()}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={() => {
+            clearCart();
+            setIsCartOpen(false);
+            setShowPaymentModal(false);
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+// Payment Modal Component
+const PaymentModal = ({ cartItems, total, onClose, onSuccess }) => {
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [loading, setLoading] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+
+  const handlePayment = async () => {
+    setLoading(true);
+    try {
+      // Create order first
+      const orderData = {
+        items: cartItems.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: total
+      };
+
+      const orderResponse = await api.post('/api/orders', orderData);
+      const order = orderResponse.data;
+
+      if (paymentMethod === 'cash') {
+        toast.success('Commande créée ! Paiement en espèces à effectuer sur place.');
+        onSuccess();
+      } else {
+        // Simulate card payment
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Update order status to paid
+        await api.put(`/api/orders/${order.id}/status?status=confirmed`);
+        
+        toast.success('Paiement réussi ! Votre commande a été confirmée.');
+        onSuccess();
+      }
+    } catch (error) {
+      toast.error('Erreur lors du paiement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">Paiement</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+
+        {/* Order Summary */}
+        <div className="mb-6">
+          <h3 className="font-medium mb-3">Résumé de la commande</h3>
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {cartItems.map(item => (
+              <div key={item.id} className="flex justify-between text-sm">
+                <span>{item.name} x{item.quantity}</span>
+                <span>{(item.price * item.quantity).toFixed(2)} €</span>
+              </div>
+            ))}
+          </div>
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between font-bold">
+              <span>Total:</span>
+              <span className="text-orange-600">{total.toFixed(2)} €</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Method */}
+        <div className="mb-6">
+          <h3 className="font-medium mb-3">Méthode de paiement</h3>
+          <div className="space-y-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                value="card"
+                checked={paymentMethod === 'card'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="mr-2"
+              />
+              Carte bancaire
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                value="cash"
+                checked={paymentMethod === 'cash'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="mr-2"
+              />
+              Espèces (sur place)
+            </label>
+          </div>
+        </div>
+
+        {/* Card Details */}
+        {paymentMethod === 'card' && (
+          <div className="mb-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Nom sur la carte</label>
+              <input
+                type="text"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="John Doe"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Numéro de carte</label>
+              <input
+                type="text"
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="1234 5678 9012 3456"
+                maxLength="19"
+              />
+            </div>
+            <div className="flex space-x-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">Date d'expiration</label>
+                <input
+                  type="text"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="MM/YY"
+                  maxLength="5"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">CVV</label>
+                <input
+                  type="text"
+                  value={cvv}
+                  onChange={(e) => setCvv(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="123"
+                  maxLength="3"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Button */}
+        <button
+          onClick={handlePayment}
+          disabled={loading}
+          className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+        >
+          {loading ? (
+            <>
+              <LoadingSpinner size="small" />
+              <span className="ml-2">Traitement...</span>
+            </>
+          ) : (
+            `Payer ${total.toFixed(2)} €`
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Client Home Page
+const ClientHomePage = () => {
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedItems = async () => {
+      try {
+        const response = await api.get('/api/menu');
+        setFeaturedItems(response.data.slice(0, 3));
+      } catch (error) {
+        console.error('Error fetching featured items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedItems();
+  }, []);
+
+  const scrollToMenu = () => {
+    window.location.hash = 'menu';
+  };
+
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-r from-orange-400 to-red-600 text-white py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-6xl font-bold mb-6">🍽️ Restaurant IA</h1>
+          <p className="text-xl mb-8 opacity-90">
+            Découvrez une expérience culinaire unique avec des recommandations personnalisées par intelligence artificielle
+          </p>
+          <button
+            onClick={scrollToMenu}
+            className="bg-white text-orange-600 px-8 py-4 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors"
+          >
+            Voir le Menu
+          </button>
         </div>
       </section>
 
       {/* Services Section */}
-      <section className="py-16">
+      <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">
-            Nos Services
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Utensils className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Menu Intelligent</h3>
-              <p className="text-gray-600">
-                Recommandations personnalisées basées sur vos préférences et notre IA
-              </p>
+          <h2 className="text-3xl font-bold text-center mb-12">Nos Services</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">🤖</div>
+              <h3 className="text-xl font-bold mb-2">Recommandations IA</h3>
+              <p className="text-gray-600">Des suggestions personnalisées basées sur vos préférences et votre historique</p>
             </div>
-
-            <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Calendar className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Réservations</h3>
-              <p className="text-gray-600">
-                Réservez votre table en ligne facilement et rapidement
-              </p>
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">🚚</div>
+              <h3 className="text-xl font-bold mb-2">Livraison Rapide</h3>
+              <p className="text-gray-600">Livraison en 30 minutes ou moins dans toute la ville</p>
             </div>
-
-            <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ShoppingBag className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Commande en Ligne</h3>
-              <p className="text-gray-600">
-                Commandez vos plats favoris et suivez leur préparation en temps réel
-              </p>
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">📱</div>
+              <h3 className="text-xl font-bold mb-2">Commande Facile</h3>
+              <p className="text-gray-600">Interface intuitive pour commander en quelques clics</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Featured Menu */}
-      <section className="py-16 bg-white">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">
-            Plats Populaires
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Burger Classic IA",
-                description: "Burger artisanal optimisé par IA",
-                price: "12.90€",
-                image: "https://images.unsplash.com/photo-1700513970028-d8a630d21c6e?w=400"
-              },
-              {
-                name: "Salade Smart César",
-                description: "Salade avec recommandations nutritionnelles",
-                price: "9.50€",
-                image: "https://images.unsplash.com/photo-1556742393-d75f468bfcb0?w=400"
-              },
-              {
-                name: "Cocktail IA Signature",
-                description: "Cocktail aux fruits avec recette optimisée",
-                price: "8.00€",
-                image: "https://images.unsplash.com/photo-1700513970042-f1fc4236c0bc?w=400"
-              }
-            ].map((item, index) => (
-              <div key={index} className="food-card">
-                <img 
-                  src={item.image} 
-                  alt={item.name}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold mb-2">{item.name}</h3>
-                  <p className="text-gray-600 mb-4">{item.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-orange-600">{item.price}</span>
-                    <button className="btn-primary">
-                      Ajouter
-                    </button>
+          <h2 className="text-3xl font-bold text-center mb-12">Plats Populaires</h2>
+          {loading ? (
+            <div className="flex justify-center">
+              <LoadingSpinner size="large" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8">
+              {featuredItems.map(item => (
+                <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold mb-2">{item.name}</h3>
+                    <p className="text-gray-600 mb-4">{item.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
+                      <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">
+                        {item.category}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-6">
-                Contactez-nous
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <MapPin className="w-5 h-5 text-orange-600 mr-3" />
-                  <span>123 Rue de la Gastronomie, 75001 Paris</span>
-                </div>
-                <div className="flex items-center">
-                  <Phone className="w-5 h-5 text-orange-600 mr-3" />
-                  <span>01 23 45 67 89</span>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="w-5 h-5 text-orange-600 mr-3" />
-                  <span>contact@restaurant-ia.com</span>
-                </div>
-                <div className="flex items-center">
-                  <Clock className="w-5 h-5 text-orange-600 mr-3" />
-                  <span>Ouvert tous les jours de 11h à 23h</span>
-                </div>
-              </div>
+              ))}
             </div>
-            
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Horaires d'ouverture</h3>
-              <div className="space-y-2 text-gray-600">
-                <div className="flex justify-between">
-                  <span>Lundi - Vendredi</span>
-                  <span>11h00 - 23h00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Samedi</span>
-                  <span>10h00 - 24h00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Dimanche</span>
-                  <span>10h00 - 22h00</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </section>
     </div>
   );
-}
+};
 
-function MenuPage() {
+// Menu Page Component
+const MenuPage = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const { addToCart } = useContext(CartContext);
+  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const { addToCart } = useCart();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchMenuItems();
     fetchCategories();
-  }, []);
+    if (user) {
+      fetchAIRecommendations();
+    }
+  }, [user]);
 
   const fetchMenuItems = async () => {
     try {
       const response = await api.get('/api/menu');
       setMenuItems(response.data);
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      toast.error('Erreur lors du chargement du menu');
     } finally {
       setLoading(false);
     }
@@ -677,6 +715,20 @@ function MenuPage() {
     }
   };
 
+  const fetchAIRecommendations = async () => {
+    try {
+      const response = await api.post('/api/ai/recommendations', {
+        user_id: user.id,
+        preferences: {}
+      });
+      if (response.data.status === 'success') {
+        setAiRecommendations(response.data.recommendations.recommended_items || []);
+      }
+    } catch (error) {
+      console.error('Error fetching AI recommendations:', error);
+    }
+  };
+
   const filteredItems = menuItems.filter(item => {
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -684,260 +736,113 @@ function MenuPage() {
     return matchesCategory && matchesSearch && item.available;
   });
 
-  const getCategoryIcon = (category) => {
-    const icons = {
-      'Entrées': Coffee,
-      'Plats': Utensils,
-      'Desserts': Cookie,
-      'Boissons': Wine,
-      'all': MenuIcon
-    };
-    return icons[category] || Utensils;
-  };
-
-  if (loading) return <LoadingSpinner />;
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <ClientHeader />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">Notre Menu</h1>
-          <p className="text-lg text-gray-600">
-            Découvrez nos plats préparés avec amour et optimisés par notre IA
-          </p>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher un plat..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            </div>
-          </div>
-
-          {/* Categories */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map(category => {
-              const Icon = getCategoryIcon(category);
-              return (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                    selectedCategory === category
-                      ? 'menu-category-active'
-                      : 'bg-white text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 mr-2" />
-                  {category === 'all' ? 'Tous' : category}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Menu Items */}
-        {filteredItems.length === 0 ? (
-          <div className="text-center py-12">
-            <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">
-              Aucun plat trouvé
-            </h3>
-            <p className="text-gray-500">
-              Essayez de modifier vos critères de recherche
-            </p>
-          </div>
-        ) : (
-          <div className="menu-grid">
-            {filteredItems.map(item => (
-              <div key={item.id} className="menu-item-card">
-                <img 
-                  src={item.image_url} 
-                  alt={item.name}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
-                    {item.popularity_score > 0.8 && (
-                      <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                    )}
-                  </div>
-                  <p className="text-gray-600 mb-4 text-sm">{item.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-orange-600">
-                      {item.price.toFixed(2)}€
-                    </span>
-                    <button
-                      onClick={() => addToCart(item)}
-                      className="btn-primary flex items-center"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Ajouter
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CartPage() {
-  const { cartItems, updateQuantity, removeFromCart, getCartTotal, clearCart } = useContext(CartContext);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-
-  if (cartItems.length === 0) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <ClientHeader />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-12">
-            <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-600 mb-2">
-              Votre panier est vide
-            </h2>
-            <p className="text-gray-500 mb-6">
-              Ajoutez des plats délicieux à votre panier
-            </p>
-            <button className="btn-primary">
-              Voir le Menu
-            </button>
-          </div>
-        </div>
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner size="large" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ClientHeader />
-      
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Votre Panier</h1>
-          <button
-            onClick={clearCart}
-            className="text-red-600 hover:text-red-700 font-medium"
-          >
-            Vider le panier
-          </button>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold mb-8">Notre Menu</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm">
-              {cartItems.map(item => (
-                <div key={item.id} className="cart-item">
-                  <div className="flex items-center space-x-4">
-                    <img 
-                      src={item.image_url} 
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800">{item.name}</h3>
-                      <p className="text-gray-600 text-sm">{item.price.toFixed(2)}€</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <span className="font-semibold text-gray-800 w-20 text-right">
-                      {(item.price * item.quantity).toFixed(2)}€
-                    </span>
-                    
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      className="p-1 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-              <h3 className="text-lg font-semibold mb-4">Résumé de la commande</h3>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between">
-                  <span>Sous-total</span>
-                  <span>{getCartTotal().toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>TVA (20%)</span>
-                  <span>{(getCartTotal() * 0.2).toFixed(2)}€</span>
-                </div>
-                <hr />
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Total</span>
-                  <span>{(getCartTotal() * 1.2).toFixed(2)}€</span>
+      {/* AI Recommendations */}
+      {aiRecommendations.length > 0 && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg">
+          <h2 className="text-xl font-bold mb-4 flex items-center">
+            <span className="mr-2">🤖</span>
+            Recommandations IA pour vous
+          </h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            {aiRecommendations.slice(0, 3).map((rec, index) => (
+              <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
+                <h3 className="font-medium">{rec.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">{rec.reason}</p>
+                <div className="mt-2">
+                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                    Confiance: {(rec.confidence_score * 100).toFixed(0)}%
+                  </span>
                 </div>
               </div>
-
-              <button
-                onClick={() => setShowPaymentModal(true)}
-                className="w-full btn-primary py-3"
-              >
-                Procéder au paiement
-              </button>
-            </div>
+            ))}
           </div>
+        </div>
+      )}
+
+      {/* Search and Filters */}
+      <div className="mb-8 space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <input
+            type="text"
+            placeholder="Rechercher un plat..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                selectedCategory === category
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {category === 'all' ? 'Tous' : category}
+            </button>
+          ))}
         </div>
       </div>
 
-      {showPaymentModal && (
-        <PaymentModal
-          total={getCartTotal() * 1.2}
-          cartItems={cartItems}
-          onClose={() => setShowPaymentModal(false)}
-          onSuccess={() => {
-            clearCart();
-            setShowPaymentModal(false);
-          }}
-        />
+      {/* Menu Items */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredItems.map(item => (
+          <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className="w-full h-48 object-cover"
+            />
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-xl font-bold">{item.name}</h3>
+                <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
+                  {item.category}
+                </span>
+              </div>
+              <p className="text-gray-600 mb-4">{item.description}</p>
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
+                <button
+                  onClick={() => addToCart(item)}
+                  className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredItems.length === 0 && (
+        <div className="text-center py-12">
+          <span className="text-6xl">🍽️</span>
+          <p className="text-gray-500 mt-4">Aucun plat trouvé</p>
+        </div>
       )}
     </div>
   );
-}
+};
 
-function ClientOrdersPage() {
+// Client Orders Page
+const ClientOrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -950,7 +855,7 @@ function ClientOrdersPage() {
       const response = await api.get('/api/orders');
       setOrders(response.data);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      toast.error('Erreur lors du chargement des commandes');
     } finally {
       setLoading(false);
     }
@@ -969,98 +874,107 @@ function ClientOrdersPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      toast.success('Facture téléchargée !');
     } catch (error) {
-      console.error('Error downloading invoice:', error);
+      toast.error('Erreur lors du téléchargement de la facture');
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const cancelOrder = async (orderId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) {
+      return;
+    }
+
+    try {
+      await api.put(`/api/orders/${orderId}/cancel`);
+      toast.success('Commande annulée');
+      fetchOrders();
+    } catch (error) {
+      toast.error('Erreur lors de l\'annulation');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ClientHeader />
-      
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Mes Commandes</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold mb-8">Mes Commandes</h1>
 
-        {orders.length === 0 ? (
-          <div className="text-center py-12">
-            <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">
-              Aucune commande
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Vous n'avez pas encore passé de commande
-            </p>
-            <button className="btn-primary">
-              Voir le Menu
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {orders.map(order => (
-              <div key={order.id} className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Commande #{order.id.slice(0, 8)}
-                    </h3>
-                    <p className="text-gray-600">
-                      {new Date(order.created_at).toLocaleDateString('fr-FR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <StatusBadge status={order.status} />
-                    <span className="text-xl font-bold text-gray-800">
-                      {order.total.toFixed(2)}€
-                    </span>
-                  </div>
+      {orders.length === 0 ? (
+        <div className="text-center py-12">
+          <span className="text-6xl">📦</span>
+          <p className="text-gray-500 mt-4">Aucune commande trouvée</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {orders.map(order => (
+            <div key={order.id} className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">Commande #{order.id.slice(0, 8)}</h3>
+                  <p className="text-gray-600">
+                    {new Date(order.created_at).toLocaleDateString('fr-FR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
                 </div>
+                <StatusBadge status={order.status} />
+              </div>
 
-                <div className="border-t pt-4">
-                  <h4 className="font-medium text-gray-800 mb-2">Articles commandés :</h4>
-                  <div className="space-y-2">
-                    {order.items.map((item, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span>{item.quantity}x {item.name || 'Article'}</span>
-                        <span>{(item.price * item.quantity).toFixed(2)}€</span>
-                      </div>
-                    ))}
-                  </div>
+              <div className="mb-4">
+                <h4 className="font-medium mb-2">Articles commandés:</h4>
+                <div className="space-y-2">
+                  {order.items.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{item.name || 'Article'} x{item.quantity}</span>
+                      <span>{(item.price * item.quantity).toFixed(2)} €</span>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
-                <div className="flex justify-end space-x-3 mt-4 pt-4 border-t">
-                  <button
-                    onClick={() => downloadInvoice(order.id)}
-                    className="flex items-center px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    Facture
-                  </button>
-                  
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div className="text-lg font-bold">
+                  Total: {order.total.toFixed(2)} €
+                </div>
+                <div className="space-x-2">
                   {order.status === 'pending' && (
-                    <button className="flex items-center px-4 py-2 text-red-600 hover:text-red-700 font-medium">
-                      <X className="w-4 h-4 mr-1" />
+                    <button
+                      onClick={() => cancelOrder(order.id)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
                       Annuler
                     </button>
                   )}
+                  <button
+                    onClick={() => downloadInvoice(order.id)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Télécharger Facture
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};
 
-function ClientReservationsPage() {
+// Client Reservations Page
+const ClientReservationsPage = () => {
   const [reservations, setReservations] = useState([]);
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1076,7 +990,7 @@ function ClientReservationsPage() {
       const response = await api.get('/api/reservations');
       setReservations(response.data);
     } catch (error) {
-      console.error('Error fetching reservations:', error);
+      toast.error('Erreur lors du chargement des réservations');
     } finally {
       setLoading(false);
     }
@@ -1091,84 +1005,78 @@ function ClientReservationsPage() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const cancelReservation = async (reservationId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')) {
+      return;
+    }
+
+    try {
+      await api.put(`/api/reservations/${reservationId}`, { status: 'cancelled' });
+      toast.success('Réservation annulée');
+      fetchReservations();
+    } catch (error) {
+      toast.error('Erreur lors de l\'annulation');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ClientHeader />
-      
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Mes Réservations</h1>
-          <button
-            onClick={() => setShowReservationForm(true)}
-            className="btn-primary flex items-center"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle Réservation
-          </button>
-        </div>
-
-        {reservations.length === 0 ? (
-          <div className="text-center py-12">
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">
-              Aucune réservation
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Vous n'avez pas encore de réservation
-            </p>
-            <button
-              onClick={() => setShowReservationForm(true)}
-              className="btn-primary"
-            >
-              Réserver une Table
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {reservations.map(reservation => {
-              const table = tables.find(t => t.id === reservation.table_id);
-              return (
-                <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Table {table?.number || 'N/A'}
-                    </h3>
-                    <StatusBadge status={reservation.status} />
-                  </div>
-                  
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {new Date(reservation.date).toLocaleDateString('fr-FR')}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-2" />
-                      {new Date(reservation.date).toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      {reservation.guests} personne{reservation.guests > 1 ? 's' : ''}
-                    </div>
-                  </div>
-
-                  {reservation.status === 'pending' && (
-                    <div className="mt-4 pt-4 border-t">
-                      <button className="text-red-600 hover:text-red-700 text-sm font-medium">
-                        Annuler la réservation
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Mes Réservations</h1>
+        <button
+          onClick={() => setShowReservationForm(true)}
+          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+        >
+          Nouvelle Réservation
+        </button>
       </div>
+
+      {reservations.length === 0 ? (
+        <div className="text-center py-12">
+          <span className="text-6xl">📅</span>
+          <p className="text-gray-500 mt-4">Aucune réservation trouvée</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {reservations.map(reservation => {
+            const table = tables.find(t => t.id === reservation.table_id);
+            return (
+              <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold">Table {table?.number || 'N/A'}</h3>
+                    <p className="text-gray-600">{table?.seats || 0} places</p>
+                  </div>
+                  <StatusBadge status={reservation.status} />
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  <p><strong>Date:</strong> {new Date(reservation.date).toLocaleDateString('fr-FR')}</p>
+                  <p><strong>Heure:</strong> {new Date(reservation.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p><strong>Invités:</strong> {reservation.guests}</p>
+                </div>
+
+                {reservation.status === 'pending' && (
+                  <button
+                    onClick={() => cancelReservation(reservation.id)}
+                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showReservationForm && (
         <ReservationForm
@@ -1182,9 +1090,10 @@ function ClientReservationsPage() {
       )}
     </div>
   );
-}
+};
 
-function ReservationForm({ tables, onClose, onSuccess }) {
+// Reservation Form Component
+const ReservationForm = ({ tables, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     table_id: '',
     date: '',
@@ -1192,66 +1101,48 @@ function ReservationForm({ tables, onClose, onSuccess }) {
     guests: 2
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
-      const dateTime = new Date(`${formData.date}T${formData.time}`);
+      const reservationDate = new Date(`${formData.date}T${formData.time}`);
       
       await api.post('/api/reservations', {
         table_id: formData.table_id,
-        date: dateTime.toISOString(),
-        guests: parseInt(formData.guests)
+        date: reservationDate.toISOString(),
+        guests: formData.guests
       });
 
+      toast.success('Réservation créée avec succès !');
       onSuccess();
     } catch (error) {
-      setError(error.response?.data?.detail || 'Erreur lors de la réservation');
+      toast.error('Erreur lors de la création de la réservation');
     } finally {
       setLoading(false);
     }
   };
 
-  const availableTables = tables.filter(table => table.status === 'available');
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">
-            Nouvelle Réservation
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">Nouvelle Réservation</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Table
-            </label>
+            <label className="block text-sm font-medium mb-1">Table</label>
             <select
               value={formData.table_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, table_id: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, table_id: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             >
               <option value="">Sélectionner une table</option>
-              {availableTables.map(table => (
+              {tables.filter(table => table.status === 'available').map(table => (
                 <option key={table.id} value={table.id}>
                   Table {table.number} ({table.seats} places)
                 </option>
@@ -1260,273 +1151,245 @@ function ReservationForm({ tables, onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date
-            </label>
+            <label className="block text-sm font-medium mb-1">Date</label>
             <input
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               min={new Date().toISOString().split('T')[0]}
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Heure
-            </label>
+            <label className="block text-sm font-medium mb-1">Heure</label>
             <input
               type="time"
               value={formData.time}
-              onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, time: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre de personnes
-            </label>
+            <label className="block text-sm font-medium mb-1">Nombre d'invités</label>
             <input
               type="number"
               value={formData.guests}
-              onChange={(e) => setFormData(prev => ({ ...prev, guests: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, guests: parseInt(e.target.value)})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               min="1"
               max="10"
               required
             />
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-4 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 btn-secondary"
+              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 btn-primary"
+              className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <Loader className="w-4 h-4 animate-spin mr-2" />
-                  Réservation...
-                </div>
-              ) : (
-                'Réserver'
-              )}
+              {loading ? <LoadingSpinner size="small" /> : 'Réserver'}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
-}
+};
 
-// Payment Modal Component
-function PaymentModal({ total, cartItems, onClose, onSuccess }) {
-  const [paymentMethod, setPaymentMethod] = useState('card');
+// Auth Page Component
+const AuthPage = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { login, register } = useAuth();
 
-  const handlePayment = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
-      // Create order first
-      const orderData = {
-        items: cartItems.map(item => ({
-          menu_item_id: item.id,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        total: total
-      };
-
-      const orderResponse = await api.post('/api/orders', orderData);
-      const order = orderResponse.data;
-
-      // Create payment intent
-      const paymentData = {
-        amount: total,
-        currency: 'eur',
-        payment_method: paymentMethod,
-        order_id: order.id
-      };
-
-      const paymentResponse = await api.post('/api/payments/create-intent', paymentData);
-
-      if (paymentMethod === 'card') {
-        // In a real app, you would integrate with Stripe Elements here
-        alert('Redirection vers le paiement sécurisé Stripe...');
-        onSuccess();
+      if (isLogin) {
+        await login(formData.email, formData.password);
       } else {
-        // Cash payment
-        alert('Commande créée ! Paiement en espèces à effectuer au restaurant.');
-        onSuccess();
+        if (formData.password !== formData.confirmPassword) {
+          toast.error('Les mots de passe ne correspondent pas');
+          return;
+        }
+        await register(formData.name, formData.email, formData.password);
+        setIsLogin(true);
+        setFormData({ name: '', email: '', password: '', confirmPassword: '' });
       }
     } catch (error) {
-      setError(error.response?.data?.detail || 'Erreur lors du paiement');
+      // Error handled in auth functions
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">Paiement</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-orange-400 to-red-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">🍽️ Restaurant IA</h1>
+          <p className="text-gray-600 mt-2">
+            {isLogin ? 'Connectez-vous à votre compte' : 'Créez votre compte'}
+          </p>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
-          </div>
-        )}
+        {/* Test Account Info */}
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <h3 className="font-medium text-blue-800 mb-2">Compte de test:</h3>
+          <p className="text-sm text-blue-600">
+            <strong>Admin:</strong> admin@restaurant.com / admin123<br/>
+            <strong>Ou créez un nouveau compte client</strong>
+          </p>
+        </div>
 
-        {/* Order Summary */}
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-800 mb-3">Résumé de la commande</h3>
-          <div className="space-y-2 text-sm">
-            {cartItems.map(item => (
-              <div key={item.id} className="flex justify-between">
-                <span>{item.quantity}x {item.name}</span>
-                <span>{(item.price * item.quantity).toFixed(2)}€</span>
-              </div>
-            ))}
-            <hr />
-            <div className="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>{total.toFixed(2)}€</span>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                required={!isLogin}
+              />
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Payment Method */}
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-800 mb-3">Mode de paiement</h3>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="card"
-                checked={paymentMethod === 'card'}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="mr-3"
-              />
-              <CreditCard className="w-5 h-5 mr-2" />
-              Carte bancaire
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="cash"
-                checked={paymentMethod === 'cash'}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="mr-3"
-              />
-              <DollarSign className="w-5 h-5 mr-2" />
-              Espèces (au restaurant)
-            </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
+            />
           </div>
-        </div>
 
-        <div className="flex space-x-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
+            />
+          </div>
+
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe</label>
+              <input
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                required={!isLogin}
+              />
+            </div>
+          )}
+
           <button
-            onClick={onClose}
-            className="flex-1 btn-secondary"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handlePayment}
+            type="submit"
             disabled={loading}
-            className="flex-1 btn-primary"
+            className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center"
           >
             {loading ? (
-              <div className="flex items-center justify-center">
-                <Loader className="w-4 h-4 animate-spin mr-2" />
-                Traitement...
-              </div>
+              <>
+                <LoadingSpinner size="small" />
+                <span className="ml-2">Chargement...</span>
+              </>
             ) : (
-              `Payer ${total.toFixed(2)}€`
+              isLogin ? 'Se connecter' : 'S\'inscrire'
             )}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-orange-600 hover:text-orange-700 transition-colors"
+          >
+            {isLogin ? 'Pas de compte ? S\'inscrire' : 'Déjà un compte ? Se connecter'}
           </button>
         </div>
       </div>
     </div>
   );
-}
+};
 
-// Admin Components
-function AdminSidebar({ activeSection, setActiveSection }) {
-  const { logout } = useContext(AuthContext);
+// Admin Sidebar Component
+const AdminSidebar = ({ currentPage, setCurrentPage }) => {
+  const { logout } = useAuth();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'orders', label: 'Commandes', icon: ShoppingBag },
-    { id: 'menu', label: 'Menu', icon: Utensils },
-    { id: 'tables', label: 'Tables', icon: Package },
-    { id: 'inventory', label: 'Inventaire', icon: Package },
-    { id: 'users', label: 'Utilisateurs', icon: Users },
+    { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
+    { id: 'orders', label: 'Commandes', icon: '📦' },
+    { id: 'menu', label: 'Menu', icon: '🍽️' },
+    { id: 'users', label: 'Utilisateurs', icon: '👥' },
+    { id: 'tables', label: 'Tables', icon: '🪑' },
+    { id: 'inventory', label: 'Inventaire', icon: '📋' },
+    { id: 'reports', label: 'Rapports', icon: '📈' }
   ];
 
   return (
-    <div className="w-64 bg-white shadow-sm border-r border-gray-200 min-h-screen">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center">
-          <Utensils className="w-8 h-8 text-orange-600 mr-2" />
-          <span className="text-xl font-bold text-gray-800">Admin Panel</span>
-        </div>
+    <div className="w-64 bg-white shadow-lg h-screen fixed left-0 top-0 z-30">
+      <div className="p-6">
+        <h1 className="text-xl font-bold text-orange-600">🍽️ Admin Panel</h1>
       </div>
-
-      <nav className="p-4">
-        {menuItems.map(item => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={`nav-item w-full text-left ${
-                activeSection === item.id ? 'nav-item-active' : ''
-              }`}
-            >
-              <Icon className="w-5 h-5 mr-3 inline" />
-              {item.label}
-            </button>
-          );
-        })}
+      
+      <nav className="mt-6">
+        {menuItems.map(item => (
+          <button
+            key={item.id}
+            onClick={() => setCurrentPage(item.id)}
+            className={`w-full flex items-center px-6 py-3 text-left hover:bg-gray-100 transition-colors ${
+              currentPage === item.id ? 'bg-orange-100 text-orange-800 border-r-4 border-orange-600' : 'text-gray-700'
+            }`}
+          >
+            <span className="mr-3">{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
       </nav>
 
-      <div className="absolute bottom-4 left-4 right-4">
+      <div className="absolute bottom-0 w-full p-6">
         <button
           onClick={logout}
-          className="nav-item w-full text-left text-red-600 hover:bg-red-50"
+          className="w-full flex items-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
-          <LogOut className="w-5 h-5 mr-3 inline" />
+          <span className="mr-3">🚪</span>
           Déconnexion
         </button>
       </div>
     </div>
   );
-}
+};
 
-function AdminDashboard() {
+// Admin Dashboard Component
+const AdminDashboard = () => {
   const [stats, setStats] = useState({
     total_orders: 0,
     total_users: 0,
@@ -1544,82 +1407,127 @@ function AdminDashboard() {
       const response = await api.get('/api/stats/dashboard');
       setStats(response.data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      toast.error('Erreur lors du chargement des statistiques');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const downloadDailyReport = async () => {
+    try {
+      const response = await api.get('/api/reports/daily', {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `rapport_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Rapport téléchargé !');
+    } catch (error) {
+      toast.error('Erreur lors du téléchargement du rapport');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="dashboard-card">
-          <div className="dashboard-label">Commandes totales</div>
-          <div className="dashboard-stat">{stats.total_orders}</div>
+      <h1 className="text-3xl font-bold mb-8">Tableau de bord</h1>
+
+      {/* Stats Cards */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <span className="text-2xl">📦</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Total Commandes</p>
+              <p className="text-2xl font-bold">{stats.total_orders}</p>
+            </div>
+          </div>
         </div>
-        
-        <div className="dashboard-card">
-          <div className="dashboard-label">Utilisateurs</div>
-          <div className="dashboard-stat">{stats.total_users}</div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <span className="text-2xl">👥</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Utilisateurs</p>
+              <p className="text-2xl font-bold">{stats.total_users}</p>
+            </div>
+          </div>
         </div>
-        
-        <div className="dashboard-card">
-          <div className="dashboard-label">Chiffre d'affaires</div>
-          <div className="dashboard-stat">{stats.total_revenue.toFixed(2)}€</div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <div className="p-3 bg-orange-100 rounded-lg">
+              <span className="text-2xl">💰</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Chiffre d'affaires</p>
+              <p className="text-2xl font-bold">{stats.total_revenue.toFixed(2)} €</p>
+            </div>
+          </div>
         </div>
-        
-        <div className="dashboard-card">
-          <div className="dashboard-label">Commandes aujourd'hui</div>
-          <div className="dashboard-stat">{stats.today_orders}</div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <span className="text-2xl">📅</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Commandes aujourd'hui</p>
+              <p className="text-2xl font-bold">{stats.today_orders}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Actions rapides</h3>
-          <div className="space-y-3">
-            <button className="w-full btn-primary text-left">
-              <Plus className="w-4 h-4 mr-2 inline" />
-              Ajouter un plat au menu
-            </button>
-            <button className="w-full btn-secondary text-left">
-              <Download className="w-4 h-4 mr-2 inline" />
-              Télécharger le rapport journalier
-            </button>
-            <button className="w-full btn-secondary text-left">
-              <TrendingUp className="w-4 h-4 mr-2 inline" />
-              Voir les analytics IA
-            </button>
-          </div>
-        </div>
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-bold mb-4">Actions rapides</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          <button
+            onClick={downloadDailyReport}
+            className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left"
+          >
+            <div className="text-2xl mb-2">📊</div>
+            <h3 className="font-medium">Rapport journalier</h3>
+            <p className="text-sm text-gray-600">Télécharger le rapport du jour</p>
+          </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-semibold mb-4">Alertes système</h3>
-          <div className="space-y-3">
-            <div className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
-              <span className="text-sm text-yellow-800">
-                Stock faible pour 3 articles
-              </span>
-            </div>
-            <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
-              <span className="text-sm text-green-800">
-                Système IA opérationnel
-              </span>
-            </div>
-          </div>
+          <button className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left">
+            <div className="text-2xl mb-2">🍽️</div>
+            <h3 className="font-medium">Nouveau plat</h3>
+            <p className="text-sm text-gray-600">Ajouter un article au menu</p>
+          </button>
+
+          <button className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-left">
+            <div className="text-2xl mb-2">📋</div>
+            <h3 className="font-medium">Inventaire</h3>
+            <p className="text-sm text-gray-600">Gérer le stock</p>
+          </button>
         </div>
       </div>
     </div>
   );
-}
+};
 
-function AdminOrders() {
+// Admin Orders Component
+const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -1633,7 +1541,7 @@ function AdminOrders() {
       const response = await api.get('/api/orders');
       setOrders(response.data);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      toast.error('Erreur lors du chargement des commandes');
     } finally {
       setLoading(false);
     }
@@ -1642,27 +1550,35 @@ function AdminOrders() {
   const updateOrderStatus = async (orderId, status) => {
     try {
       await api.put(`/api/orders/${orderId}/status?status=${status}`);
+      toast.success('Statut mis à jour');
       fetchOrders();
     } catch (error) {
-      console.error('Error updating order status:', error);
+      toast.error('Erreur lors de la mise à jour');
     }
   };
 
-  const filteredOrders = orders.filter(order => 
-    filter === 'all' || order.status === filter
-  );
+  const filteredOrders = orders.filter(order => {
+    if (filter === 'all') return true;
+    return order.status === filter;
+  });
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Gestion des Commandes</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gestion des Commandes</h1>
         
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="form-control w-auto"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="all">Toutes les commandes</option>
           <option value="pending">En attente</option>
@@ -1674,70 +1590,42 @@ function AdminOrders() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="table-responsive">
-          <table className="table">
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
               <tr>
-                <th>Commande</th>
-                <th>Client</th>
-                <th>Date</th>
-                <th>Total</th>
-                <th>Statut</th>
-                <th>Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {filteredOrders.map(order => (
-                <tr key={order.id}>
-                  <td>
-                    <span className="font-medium">#{order.id.slice(0, 8)}</span>
-                  </td>
-                  <td>{order.user_name || 'Client'}</td>
-                  <td>
+                <tr key={order.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-sm font-medium">#{order.id.slice(0, 8)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
                     {new Date(order.created_at).toLocaleDateString('fr-FR')}
                   </td>
-                  <td className="font-semibold">{order.total.toFixed(2)}€</td>
-                  <td>
+                  <td className="px-6 py-4 text-sm text-gray-600">Client #{order.user_id.slice(0, 8)}</td>
+                  <td className="px-6 py-4 text-sm font-medium">{order.total.toFixed(2)} €</td>
+                  <td className="px-6 py-4">
                     <StatusBadge status={order.status} />
                   </td>
-                  <td>
-                    <div className="flex space-x-2">
-                      {order.status === 'pending' && (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                          className="text-blue-600 hover:text-blue-700 text-sm"
-                        >
-                          Confirmer
-                        </button>
-                      )}
-                      {order.status === 'confirmed' && (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'preparing')}
-                          className="text-orange-600 hover:text-orange-700 text-sm"
-                        >
-                          Préparer
-                        </button>
-                      )}
-                      {order.status === 'preparing' && (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'ready')}
-                          className="text-green-600 hover:text-green-700 text-sm"
-                        >
-                          Prêt
-                        </button>
-                      )}
-                      {order.status === 'ready' && (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'delivered')}
-                          className="text-gray-600 hover:text-gray-700 text-sm"
-                        >
-                          Livré
-                        </button>
-                      )}
-                      <button className="text-blue-600 hover:text-blue-700 text-sm">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <td className="px-6 py-4">
+                    <select
+                      value={order.status}
+                      onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                      className="text-sm border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="pending">En attente</option>
+                      <option value="confirmed">Confirmé</option>
+                      <option value="preparing">En préparation</option>
+                      <option value="ready">Prêt</option>
+                      <option value="delivered">Livré</option>
+                    </select>
                   </td>
                 </tr>
               ))}
@@ -1745,11 +1633,19 @@ function AdminOrders() {
           </table>
         </div>
       </div>
+
+      {filteredOrders.length === 0 && (
+        <div className="text-center py-12">
+          <span className="text-6xl">📦</span>
+          <p className="text-gray-500 mt-4">Aucune commande trouvée</p>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-function AdminMenu() {
+// Admin Menu Component
+const AdminMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -1764,82 +1660,120 @@ function AdminMenu() {
       const response = await api.get('/api/menu');
       setMenuItems(response.data);
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      toast.error('Erreur lors du chargement du menu');
     } finally {
       setLoading(false);
     }
   };
 
   const deleteMenuItem = async (itemId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) {
-      try {
-        await api.delete(`/api/menu/${itemId}`);
-        fetchMenuItems();
-      } catch (error) {
-        console.error('Error deleting menu item:', error);
-      }
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/menu/${itemId}`);
+      toast.success('Article supprimé');
+      fetchMenuItems();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const toggleAvailability = async (itemId, available) => {
+    try {
+      await api.put(`/api/menu/${itemId}`, { available: !available });
+      toast.success('Disponibilité mise à jour');
+      fetchMenuItems();
+    } catch (error) {
+      toast.error('Erreur lors de la mise à jour');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Gestion du Menu</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gestion du Menu</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center"
+          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Ajouter un plat
+          Ajouter un article
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {menuItems.map(item => (
-          <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <img 
-              src={item.image_url} 
+          <div key={item.id} className={`bg-white rounded-lg shadow-sm overflow-hidden ${!item.available ? 'opacity-60' : ''}`}>
+            <img
+              src={item.image_url}
               alt={item.name}
               className="w-full h-48 object-cover"
             />
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                <StatusBadge status={item.available ? 'available' : 'unavailable'} />
-              </div>
-              <p className="text-gray-600 text-sm mb-3">{item.description}</p>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xl font-bold text-orange-600">
-                  {item.price.toFixed(2)}€
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-xl font-bold">{item.name}</h3>
+                <span className={`px-2 py-1 rounded text-sm ${
+                  item.available 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {item.available ? 'Disponible' : 'Non disponible'}
                 </span>
-                <span className="text-sm text-gray-500">{item.category}</span>
               </div>
-              
+              <p className="text-gray-600 mb-4">{item.description}</p>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
+                <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
+                  {item.category}
+                </span>
+              </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => {
                     setEditingItem(item);
                     setShowForm(true);
                   }}
-                  className="flex-1 btn-secondary text-sm"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  <Edit className="w-4 h-4 mr-1" />
                   Modifier
                 </button>
                 <button
-                  onClick={() => deleteMenuItem(item.id)}
-                  className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm"
+                  onClick={() => toggleAvailability(item.id, item.available)}
+                  className={`flex-1 py-2 rounded-lg transition-colors ${
+                    item.available
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Supprimer
+                  {item.available ? 'Désactiver' : 'Activer'}
+                </button>
+                <button
+                  onClick={() => deleteMenuItem(item.id)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  🗑️
                 </button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {menuItems.length === 0 && (
+        <div className="text-center py-12">
+          <span className="text-6xl">🍽️</span>
+          <p className="text-gray-500 mt-4">Aucun article dans le menu</p>
+        </div>
+      )}
 
       {showForm && (
         <MenuItemForm
@@ -1857,24 +1791,23 @@ function AdminMenu() {
       )}
     </div>
   );
-}
+};
 
-function MenuItemForm({ item, onClose, onSuccess }) {
+// Menu Item Form Component
+const MenuItemForm = ({ item, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
     price: item?.price || '',
     category: item?.category || 'Plats',
     image_url: item?.image_url || '',
-    available: item?.available ?? true
+    available: item?.available !== undefined ? item.available : true
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
       const data = {
@@ -1884,88 +1817,71 @@ function MenuItemForm({ item, onClose, onSuccess }) {
 
       if (item) {
         await api.put(`/api/menu/${item.id}`, data);
+        toast.success('Article mis à jour');
       } else {
         await api.post('/api/menu', data);
+        toast.success('Article créé');
       }
 
       onSuccess();
     } catch (error) {
-      setError(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
+      toast.error('Erreur lors de la sauvegarde');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {item ? 'Modifier le plat' : 'Ajouter un plat'}
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">
+            {item ? 'Modifier l\'article' : 'Nouvel article'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nom du plat
-            </label>
+            <label className="block text-sm font-medium mb-1">Nom</label>
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
+            <label className="block text-sm font-medium mb-1">Description</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               rows="3"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Prix (€)
-            </label>
+            <label className="block text-sm font-medium mb-1">Prix (€)</label>
             <input
               type="number"
               step="0.01"
               value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, price: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Catégorie
-            </label>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
             <select
               value={formData.category}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             >
               <option value="Entrées">Entrées</option>
@@ -1976,14 +1892,12 @@ function MenuItemForm({ item, onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              URL de l'image
-            </label>
+            <label className="block text-sm font-medium mb-1">URL de l'image</label>
             <input
               type="url"
               value={formData.image_url}
-              onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             />
           </div>
@@ -1993,43 +1907,68 @@ function MenuItemForm({ item, onClose, onSuccess }) {
               <input
                 type="checkbox"
                 checked={formData.available}
-                onChange={(e) => setFormData(prev => ({ ...prev, available: e.target.checked }))}
+                onChange={(e) => setFormData({...formData, available: e.target.checked})}
                 className="mr-2"
               />
-              <span className="text-sm font-medium text-gray-700">Disponible</span>
+              Disponible
             </label>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-4 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 btn-secondary"
+              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 btn-primary"
+              className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <Loader className="w-4 h-4 animate-spin mr-2" />
-                  Sauvegarde...
-                </div>
-              ) : (
-                item ? 'Modifier' : 'Ajouter'
-              )}
+              {loading ? <LoadingSpinner size="small" /> : (item ? 'Modifier' : 'Créer')}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
-}
+};
 
-function AdminTables() {
+// Admin Users Component
+const AdminUsers = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Since there's no users endpoint in the API, we'll simulate it
+    setLoading(false);
+  }, []);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-6">Gestion des Utilisateurs</h1>
+      
+      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+        <span className="text-6xl">👥</span>
+        <h2 className="text-xl font-bold mt-4 mb-2">Fonctionnalité en développement</h2>
+        <p className="text-gray-600">
+          La gestion des utilisateurs sera bientôt disponible. Cette section permettra de :
+        </p>
+        <ul className="text-left mt-4 space-y-2 max-w-md mx-auto">
+          <li>• Voir la liste des utilisateurs</li>
+          <li>• Modifier les rôles et permissions</li>
+          <li>• Gérer les comptes clients</li>
+          <li>• Analyser l'activité des utilisateurs</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// Admin Tables Component
+const AdminTables = () => {
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -2044,53 +1983,66 @@ function AdminTables() {
       const response = await api.get('/api/tables');
       setTables(response.data);
     } catch (error) {
-      console.error('Error fetching tables:', error);
+      toast.error('Erreur lors du chargement des tables');
     } finally {
       setLoading(false);
     }
   };
 
   const deleteTable = async (tableId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette table ?')) {
-      try {
-        await api.delete(`/api/tables/${tableId}`);
-        fetchTables();
-      } catch (error) {
-        console.error('Error deleting table:', error);
-      }
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette table ?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/tables/${tableId}`);
+      toast.success('Table supprimée');
+      fetchTables();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Gestion des Tables</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gestion des Tables</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center"
+          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
         >
-          <Plus className="w-4 h-4 mr-2" />
           Ajouter une table
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {tables.map(table => (
           <div key={table.id} className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Table {table.number}
-              </h3>
-              <StatusBadge status={table.status} />
+            <div className="text-center mb-4">
+              <div className="text-4xl mb-2">🪑</div>
+              <h3 className="text-xl font-bold">Table {table.number}</h3>
+              <p className="text-gray-600">{table.seats} places</p>
             </div>
             
-            <div className="space-y-2 text-sm text-gray-600 mb-4">
-              <div className="flex items-center">
-                <Users className="w-4 h-4 mr-2" />
-                {table.seats} places
-              </div>
+            <div className="mb-4">
+              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                table.status === 'available' 
+                  ? 'bg-green-100 text-green-800'
+                  : table.status === 'occupied'
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {table.status === 'available' ? 'Disponible' : 
+                 table.status === 'occupied' ? 'Occupée' : 'Réservée'}
+              </span>
             </div>
 
             <div className="flex space-x-2">
@@ -2099,22 +2051,27 @@ function AdminTables() {
                   setEditingTable(table);
                   setShowForm(true);
                 }}
-                className="flex-1 btn-secondary text-sm"
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <Edit className="w-4 h-4 mr-1" />
                 Modifier
               </button>
               <button
                 onClick={() => deleteTable(table.id)}
-                className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Supprimer
+                🗑️
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {tables.length === 0 && (
+        <div className="text-center py-12">
+          <span className="text-6xl">🪑</span>
+          <p className="text-gray-500 mt-4">Aucune table configurée</p>
+        </div>
+      )}
 
       {showForm && (
         <TableForm
@@ -2132,21 +2089,20 @@ function AdminTables() {
       )}
     </div>
   );
-}
+};
 
-function TableForm({ table, onClose, onSuccess }) {
+// Table Form Component
+const TableForm = ({ table, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     number: table?.number || '',
     seats: table?.seats || 2,
     status: table?.status || 'available'
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
       const data = {
@@ -2157,77 +2113,62 @@ function TableForm({ table, onClose, onSuccess }) {
 
       if (table) {
         await api.put(`/api/tables/${table.id}`, data);
+        toast.success('Table mise à jour');
       } else {
         await api.post('/api/tables', { ...data, id: crypto.randomUUID() });
+        toast.success('Table créée');
       }
 
       onSuccess();
     } catch (error) {
-      setError(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
+      toast.error('Erreur lors de la sauvegarde');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {table ? 'Modifier la table' : 'Ajouter une table'}
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">
+            {table ? 'Modifier la table' : 'Nouvelle table'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Numéro de table
-            </label>
+            <label className="block text-sm font-medium mb-1">Numéro de table</label>
             <input
               type="number"
               value={formData.number}
-              onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
-              className="form-control"
-              min="1"
+              onChange={(e) => setFormData({...formData, number: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
+              min="1"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre de places
-            </label>
+            <label className="block text-sm font-medium mb-1">Nombre de places</label>
             <input
               type="number"
               value={formData.seats}
-              onChange={(e) => setFormData(prev => ({ ...prev, seats: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, seats: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
               min="1"
               max="12"
-              required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Statut
-            </label>
+            <label className="block text-sm font-medium mb-1">Statut</label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              className="form-control"
+              onChange={(e) => setFormData({...formData, status: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             >
               <option value="available">Disponible</option>
@@ -2236,43 +2177,39 @@ function TableForm({ table, onClose, onSuccess }) {
             </select>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-4 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 btn-secondary"
+              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 btn-primary"
+              className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <Loader className="w-4 h-4 animate-spin mr-2" />
-                  Sauvegarde...
-                </div>
-              ) : (
-                table ? 'Modifier' : 'Ajouter'
-              )}
+              {loading ? <LoadingSpinner size="small" /> : (table ? 'Modifier' : 'Créer')}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
-}
+};
 
-function AdminInventory() {
+// Admin Inventory Component
+const AdminInventory = () => {
   const [inventory, setInventory] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiPredictions, setAiPredictions] = useState([]);
 
   useEffect(() => {
     fetchInventory();
     fetchAlerts();
+    fetchAIPredictions();
   }, []);
 
   const fetchInventory = async () => {
@@ -2280,7 +2217,7 @@ function AdminInventory() {
       const response = await api.get('/api/inventory');
       setInventory(response.data);
     } catch (error) {
-      console.error('Error fetching inventory:', error);
+      toast.error('Erreur lors du chargement de l\'inventaire');
     } finally {
       setLoading(false);
     }
@@ -2289,79 +2226,118 @@ function AdminInventory() {
   const fetchAlerts = async () => {
     try {
       const response = await api.get('/api/inventory/alerts');
-      setAlerts(response.data.alerts);
+      setAlerts(response.data.alerts || []);
     } catch (error) {
       console.error('Error fetching alerts:', error);
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const fetchAIPredictions = async () => {
+    try {
+      const response = await api.post('/api/ai/inventory/forecast', {
+        days_ahead: 7,
+        include_external_factors: true
+      });
+      if (response.data.status === 'success') {
+        setAiPredictions(response.data.forecast.predictions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching AI predictions:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Gestion de l'Inventaire</h1>
+      <h1 className="text-3xl font-bold mb-6">Gestion de l'Inventaire</h1>
 
-      {/* Alerts */}
-      {alerts.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Alertes Stock</h2>
-          <div className="space-y-2">
-            {alerts.map(alert => (
-              <div key={alert.id} className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
-                <span className="text-sm text-yellow-800">{alert.message}</span>
+      {/* AI Predictions */}
+      {aiPredictions.length > 0 && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg">
+          <h2 className="text-xl font-bold mb-4 flex items-center">
+            <span className="mr-2">🤖</span>
+            Prédictions IA - Demande 7 jours
+          </h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            {aiPredictions.slice(0, 3).map((pred, index) => (
+              <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
+                <h3 className="font-medium">{pred.item_name}</h3>
+                <p className="text-2xl font-bold text-blue-600">{pred.predicted_demand}</p>
+                <p className="text-sm text-gray-600">
+                  Confiance: {(pred.confidence * 100).toFixed(0)}% • {pred.trend}
+                </p>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Inventory Table */}
+      {/* Stock Alerts */}
+      {alerts.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-bold mb-4 text-red-600">🚨 Alertes Stock</h2>
+          <div className="space-y-2">
+            {alerts.map(alert => (
+              <div key={alert.id} className={`p-4 rounded-lg border-l-4 ${
+                alert.priority === 'high' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-yellow-500'
+              }`}>
+                <p className="font-medium">{alert.message}</p>
+                <p className="text-sm text-gray-600">Priorité: {alert.priority}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Items */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="table-responsive">
-          <table className="table">
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
               <tr>
-                <th>Article</th>
-                <th>Catégorie</th>
-                <th>Stock Actuel</th>
-                <th>Stock Min</th>
-                <th>Stock Max</th>
-                <th>Unité</th>
-                <th>Coût/Unité</th>
-                <th>Fournisseur</th>
-                <th>Statut</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Article</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock Actuel</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock Min</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unité</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {inventory.map(item => (
-                <tr key={item.id}>
-                  <td className="font-medium">{item.name}</td>
-                  <td>{item.category}</td>
-                  <td>
-                    <span className={`font-semibold ${
-                      item.current_stock <= item.min_stock_level 
-                        ? 'text-red-600' 
-                        : item.current_stock <= item.min_stock_level * 1.5
-                        ? 'text-yellow-600'
-                        : 'text-green-600'
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 font-medium">{item.name}</td>
+                  <td className="px-6 py-4 text-gray-600">{item.category}</td>
+                  <td className="px-6 py-4">
+                    <span className={`font-bold ${
+                      item.current_stock <= item.min_stock_level ? 'text-red-600' : 'text-green-600'
                     }`}>
                       {item.current_stock}
                     </span>
                   </td>
-                  <td>{item.min_stock_level}</td>
-                  <td>{item.max_stock_level}</td>
-                  <td>{item.unit}</td>
-                  <td>{item.cost_per_unit.toFixed(2)}€</td>
-                  <td>{item.supplier}</td>
-                  <td>
-                    {item.current_stock <= item.min_stock_level ? (
-                      <StatusBadge status="cancelled" />
-                    ) : item.current_stock <= item.min_stock_level * 1.5 ? (
-                      <StatusBadge status="pending" />
-                    ) : (
-                      <StatusBadge status="available" />
-                    )}
+                  <td className="px-6 py-4 text-gray-600">{item.min_stock_level}</td>
+                  <td className="px-6 py-4 text-gray-600">{item.unit}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      item.current_stock <= item.min_stock_level
+                        ? 'bg-red-100 text-red-800'
+                        : item.current_stock <= item.min_stock_level * 1.5
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {item.current_stock <= item.min_stock_level
+                        ? 'Stock faible'
+                        : item.current_stock <= item.min_stock_level * 1.5
+                        ? 'Attention'
+                        : 'OK'}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -2369,35 +2345,54 @@ function AdminInventory() {
           </table>
         </div>
       </div>
+
+      {inventory.length === 0 && (
+        <div className="text-center py-12">
+          <span className="text-6xl">📋</span>
+          <p className="text-gray-500 mt-4">Aucun article en inventaire</p>
+        </div>
+      )}
     </div>
   );
-}
+};
 
 // Main App Component
 function App() {
-  const { user, loading } = useContext(AuthContext);
   const [currentPage, setCurrentPage] = useState('home');
-  const [adminSection, setAdminSection] = useState('dashboard');
+  
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <AppContent currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <CartModal />
+      </CartProvider>
+    </AuthProvider>
+  );
+}
+
+// App Content Component
+const AppContent = ({ currentPage, setCurrentPage }) => {
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    // Handle navigation based on hash
+    // Handle hash navigation for client pages
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash) {
+      if (hash && user?.role === 'client') {
         setCurrentPage(hash);
       }
     };
 
     window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Initial load
+    handleHashChange(); // Check initial hash
 
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [user, setCurrentPage]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
+        <LoadingSpinner size="large" />
       </div>
     );
   }
@@ -2406,50 +2401,35 @@ function App() {
     return <AuthPage />;
   }
 
-  // Admin Interface
   if (user.role === 'admin') {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        <AdminSidebar activeSection={adminSection} setActiveSection={setAdminSection} />
-        <div className="flex-1">
-          {adminSection === 'dashboard' && <AdminDashboard />}
-          {adminSection === 'orders' && <AdminOrders />}
-          {adminSection === 'menu' && <AdminMenu />}
-          {adminSection === 'tables' && <AdminTables />}
-          {adminSection === 'inventory' && <AdminInventory />}
+      <div className="flex">
+        <AdminSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <div className="flex-1 ml-64">
+          {currentPage === 'dashboard' && <AdminDashboard />}
+          {currentPage === 'orders' && <AdminOrders />}
+          {currentPage === 'menu' && <AdminMenu />}
+          {currentPage === 'users' && <AdminUsers />}
+          {currentPage === 'tables' && <AdminTables />}
+          {currentPage === 'inventory' && <AdminInventory />}
+          {currentPage === 'reports' && <AdminDashboard />}
         </div>
       </div>
     );
   }
 
-  // Client Interface
-  const renderClientPage = () => {
-    switch (currentPage) {
-      case 'menu':
-        return <MenuPage />;
-      case 'cart':
-        return <CartPage />;
-      case 'orders':
-        return <ClientOrdersPage />;
-      case 'reservations':
-        return <ClientReservationsPage />;
-      default:
-        return <ClientHomePage />;
-    }
-  };
-
-  return renderClientPage();
-}
-
-// Root App with Providers
-function AppWithProviders() {
+  // Client interface
   return (
-    <AuthProvider>
-      <CartProvider>
-        <App />
-      </CartProvider>
-    </AuthProvider>
+    <div className="min-h-screen bg-gray-50">
+      <ClientHeader />
+      <main>
+        {(currentPage === 'home' || !currentPage) && <ClientHomePage />}
+        {currentPage === 'menu' && <MenuPage />}
+        {currentPage === 'orders' && <ClientOrdersPage />}
+        {currentPage === 'reservations' && <ClientReservationsPage />}
+      </main>
+    </div>
   );
-}
+};
 
-export default AppWithProviders;
+export default App;
