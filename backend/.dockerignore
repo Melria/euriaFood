@@ -8,17 +8,11 @@ build/
 develop-eggs/
 dist/
 downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+
+# Forcer Railway à ignorer Nixpacks
+nixpacks.toml
+.nixpacks/
+railway-v2.toml
 
 # Environnements virtuels
 venv/
