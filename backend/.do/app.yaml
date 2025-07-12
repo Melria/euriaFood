@@ -1,0 +1,21 @@
+# DigitalOcean App Platform
+name: emergent-backend
+services:
+- name: api
+  source_dir: /backend
+  dockerfile_path: backend/Dockerfile
+  github:
+    repo: Melria/Emergent-app
+    branch: main
+  http_port: 8000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  routes:
+  - path: /
+  envs:
+  - key: DATABASE_URL
+    value: "votre_mongodb_url"
+  - key: JWT_SECRET
+    value: "votre_jwt_secret"
+  - key: CORS_ORIGINS
+    value: "https://votre-frontend.vercel.app"
