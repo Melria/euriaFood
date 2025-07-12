@@ -2,6 +2,9 @@
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
+[variables]
+RAILWAY_DOCKERFILE_PATH = "Dockerfile"
+
 [deploy]
 healthcheckPath = "/docs"
 healthcheckTimeout = 300
