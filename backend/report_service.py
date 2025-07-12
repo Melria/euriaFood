@@ -144,5 +144,127 @@ class ReportService:
         buffer.seek(0)
         return buffer.getvalue()
 
+    def generate_period_report(self, orders: List[Dict], period: str, start_date: datetime, end_date: datetime) -> bytes:
+        """Générer un rapport pour une période donnée"""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+        
+        # Titre selon la période
+        period_labels = {
+            'today': f"Rapport du jour - {start_date.strftime('%d/%m/%Y')}",
+            'week': f"Rapport hebdomadaire - {start_date.strftime('%d/%m')} au {end_date.strftime('%d/%m/%Y')}",
+            'month': f"Rapport mensuel - {start_date.strftime('%d/%m')} au {end_date.strftime('%d/%m/%Y')}"
+        }
+        
+        title = Paragraph(period_labels.get(period, "Rapport de période"), self.title_style)
+        story.append(title)
+        story.append(Spacer(1, 20))
+        
+        # Statistiques générales
+        total_orders = len(orders)
+        total_revenue = sum(order.get('total', 0) for order in orders)
+        avg_order = total_revenue / total_orders if total_orders > 0 else 0
+        
+        stats_data = [
+            ['Statistiques', 'Valeur'],
+            ['Nombre de commandes', str(total_orders)],
+            ['Chiffre d\'affaires', f"{total_revenue:.2f} €"],
+            ['Panier moyen', f"{avg_order:.2f} €"]
+        ]
+        
+        stats_table = Table(stats_data)
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f97316')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        story.append(stats_table)
+        story.append(Spacer(1, 20))
+        
+        # Analyse des plats populaires
+        if orders:
+            item_counts = {}
+            for order in orders:
+                items = order.get('items', [])
+                for item in items:
+                    name = item.get('name', 'Article inconnu')
+                    quantity = item.get('quantity', 1)
+                    item_counts[name] = item_counts.get(name, 0) + quantity
+            
+            if item_counts:
+                story.append(Paragraph("Plats les plus commandés", self.styles['Heading2']))
+                story.append(Spacer(1, 12))
+                
+                popular_items = sorted(item_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+                items_data = [['Plat', 'Quantité vendue']]
+                
+                for item_name, count in popular_items:
+                    items_data.append([item_name, str(count)])
+                
+                items_table = Table(items_data)
+                items_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f97316')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                story.append(items_table)
+                story.append(Spacer(1, 20))
+        
+        # Liste des commandes détaillées
+        if orders:
+            story.append(Paragraph("Détail des commandes", self.styles['Heading2']))
+            story.append(Spacer(1, 12))
+            
+            orders_data = [['N° Commande', 'Date', 'Client', 'Montant', 'Statut']]
+            
+            for order in orders[:20]:  # Limiter à 20 commandes pour éviter des rapports trop longs
+                order_date = order.get('created_at', 'N/A')
+                if isinstance(order_date, str):
+                    try:
+                        order_date = datetime.fromisoformat(order_date.replace('Z', '+00:00'))
+                        order_date = order_date.strftime('%d/%m %H:%M')
+                    except:
+                        order_date = 'N/A'
+                
+                orders_data.append([
+                    order.get('id', 'N/A')[:8],
+                    order_date,
+                    order.get('user_id', 'N/A')[:8],
+                    f"{order.get('total', 0):.2f} €",
+                    order.get('status', 'N/A')
+                ])
+            
+            orders_table = Table(orders_data)
+            orders_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f97316')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(orders_table)
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
 # Instance globale
 report_service = ReportService()

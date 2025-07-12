@@ -24,7 +24,6 @@ import {
   X,
   Home,
   ChefHat,
-  UtensilsCrossed,
   Receipt,
   Settings,
   TrendingUp,
@@ -48,12 +47,16 @@ import {
   Sparkles,
   PieChart,
   Activity,
+  ArrowLeft,
   Smartphone,
   Wifi,
   Shield,
   Tag,
   TrendingDown,
-  BarChart2
+  BarChart2,
+  FileText,
+  File,
+  Utensils
 } from 'lucide-react';
 import './App.css';
 
@@ -277,8 +280,12 @@ const ClientHeader = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <h1 className="text-2xl font-bold text-orange-600 flex items-center">
-              <UtensilsCrossed className="w-8 h-8 mr-3" />
-              Restaurant IA
+              <img 
+                src="https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png" 
+                alt="EURIA Food Logo" 
+                className="w-8 h-8 mr-3 object-contain"
+              />
+              EURIA Food
             </h1>
           </div>
           
@@ -398,7 +405,7 @@ const CartModal = () => {
                       />
                       <div className="flex-1">
                         <h3 className="font-medium">{item.name}</h3>
-                        <p className="text-orange-600 font-bold">{item.price.toFixed(2)} €</p>
+                        <p className="text-orange-600 font-bold">{item.price.toFixed(2)} Fcfa</p>
                         <div className="flex items-center space-x-2 mt-2">
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -428,7 +435,7 @@ const CartModal = () => {
                 <div className="mt-6 pt-6 border-t">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-lg font-bold">Total:</span>
-                    <span className="text-xl font-bold text-orange-600">{getTotalPrice().toFixed(2)} €</span>
+                    <span className="text-xl font-bold text-orange-600">{getTotalPrice().toFixed(2)} Fcfa</span>
                   </div>
                   <div className="space-y-2">
                     <button
@@ -527,14 +534,14 @@ const PaymentModal = ({ cartItems, total, onClose, onSuccess }) => {
             {cartItems.map(item => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span>{item.name} x{item.quantity}</span>
-                <span>{(item.price * item.quantity).toFixed(2)} €</span>
+                <span>{(item.price * item.quantity).toFixed(2)} Fcfa</span>
               </div>
             ))}
           </div>
           <div className="border-t pt-2 mt-2">
             <div className="flex justify-between font-bold">
               <span>Total:</span>
-              <span className="text-orange-600">{total.toFixed(2)} €</span>
+              <span className="text-orange-600">{total.toFixed(2)} Fcfa</span>
             </div>
           </div>
         </div>
@@ -629,7 +636,7 @@ const PaymentModal = ({ cartItems, total, onClose, onSuccess }) => {
               <span className="ml-2">Traitement...</span>
             </>
           ) : (
-            `Payer ${total.toFixed(2)} €`
+            `Payer ${total.toFixed(2)} Fcfa`
           )}
         </button>
       </div>
@@ -667,8 +674,8 @@ const ClientHomePage = () => {
       <section className="bg-gradient-to-r from-orange-600 to-red-600 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-6xl font-bold mb-6 flex items-center justify-center">
-            <UtensilsCrossed className="w-16 h-16 mr-4 text-orange-600" />
-            <span>Restaurant IA</span>
+            <Utensils className="w-16 h-16 mr-4 text-white" />
+            <span>EURIA Food</span>
           </h1>
           <p className="text-xl mb-8 opacity-90">
             Découvrez une expérience culinaire unique avec des recommandations personnalisées par intelligence artificielle
@@ -702,8 +709,8 @@ const ClientHomePage = () => {
                   <Zap className="w-8 h-8 text-white" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-slate-800">Livraison Rapide</h3>
-              <p className="text-slate-600">Livraison en 30 minutes ou moins dans toute la ville</p>
+              <h3 className="text-xl font-bold mb-2 text-slate-800">Prise en charge Rapide</h3>
+              <p className="text-slate-600">Prise en charge en 30 minutes ou moins</p>
             </div>
             <div className="text-center p-6 card">
               <div className="flex justify-center mb-4">
@@ -739,7 +746,7 @@ const ClientHomePage = () => {
                     <h3 className="text-xl font-bold mb-2">{item.name}</h3>
                     <p className="text-gray-600 mb-4">{item.description}</p>
                     <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
+                      <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} Fcfa</span>
                       <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">
                         {item.category}
                       </span>
@@ -897,7 +904,7 @@ const MenuPage = () => {
               </div>
               <p className="text-slate-600 mb-4">{item.description}</p>
               <div className="flex justify-between items-center">
-                <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
+                <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} Fcfa</span>
                 <button
                   onClick={() => addToCart(item)}
                   className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
@@ -913,7 +920,11 @@ const MenuPage = () => {
       {filteredItems.length === 0 && (
         <div className="text-center py-12">
           <div className="text-center py-12">
-            <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+            <img 
+              src="https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png" 
+              alt="Aucun plat" 
+              className="w-16 h-16 mx-auto mb-4 object-contain opacity-40"
+            />
             <p className="text-gray-500 mt-4">Aucun plat trouvé</p>
           </div>
         </div>
@@ -972,7 +983,7 @@ const ClientOrdersPage = () => {
       toast.success('Commande annulée');
       fetchOrders();
     } catch (error) {
-      toast.error('Erreur lors de l\'annulation');
+      // Silent error handling - no toast notification
     }
   };
 
@@ -1019,7 +1030,7 @@ const ClientOrdersPage = () => {
                   {order.items.map((item, index) => (
                     <div key={index} className="flex justify-between text-sm">
                       <span>{item.name || 'Article'} x{item.quantity}</span>
-                      <span>{(item.price * item.quantity).toFixed(2)} €</span>
+                      <span>{(item.price * item.quantity).toFixed(2)} Fcfa</span>
                     </div>
                   ))}
                 </div>
@@ -1027,7 +1038,7 @@ const ClientOrdersPage = () => {
 
               <div className="flex justify-between items-center pt-4 border-t">
                 <div className="text-lg font-bold">
-                  Total: {order.total.toFixed(2)} €
+                  Total: {order.total.toFixed(2)} Fcfa
                 </div>
                 <div className="space-x-2">
                   {order.status === 'pending' && (
@@ -1096,7 +1107,7 @@ const ClientReservationsPage = () => {
       toast.success('Réservation annulée');
       fetchReservations();
     } catch (error) {
-      toast.error('Erreur lors de l\'annulation');
+      // Silent error handling - no toast notification
     }
   };
 
@@ -1184,12 +1195,48 @@ const ReservationForm = ({ tables, onClose, onSuccess }) => {
     guests: 2
   });
   const [loading, setLoading] = useState(false);
+  const [availableTables, setAvailableTables] = useState(tables);
+  const [selectedTable, setSelectedTable] = useState(null);
+
+  // Update available tables when date/time changes
+  useEffect(() => {
+    if (formData.date && formData.time) {
+      checkTableAvailability();
+    }
+  }, [formData.date, formData.time]);
+
+  // Update selected table info when table is selected
+  useEffect(() => {
+    if (formData.table_id) {
+      const table = availableTables.find(t => t.id === formData.table_id);
+      setSelectedTable(table);
+    } else {
+      setSelectedTable(null);
+    }
+  }, [formData.table_id, availableTables]);
+
+  const checkTableAvailability = async () => {
+    try {
+      const reservationDate = new Date(`${formData.date}T${formData.time}`);
+      const response = await api.get(`/api/tables/availability?date=${reservationDate.toISOString()}`);
+      setAvailableTables(response.data.tables);
+    } catch (error) {
+      console.error('Error checking availability:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Validate guest count against table capacity
+      if (selectedTable && formData.guests > selectedTable.seats) {
+        toast.error(`Cette table ne peut accueillir que ${selectedTable.seats} personnes maximum.`);
+        setLoading(false);
+        return;
+      }
+
       const reservationDate = new Date(`${formData.date}T${formData.time}`);
       
       await api.post('/api/reservations', {
@@ -1201,10 +1248,23 @@ const ReservationForm = ({ tables, onClose, onSuccess }) => {
       toast.success('Réservation créée avec succès !');
       onSuccess();
     } catch (error) {
-      toast.error('Erreur lors de la création de la réservation');
+      if (error.response?.status === 409) {
+        toast.error(error.response.data.detail);
+      } else if (error.response?.status === 400) {
+        toast.error(error.response.data.detail);
+      } else {
+        toast.error('Erreur lors de la création de la réservation');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAvailableTablesForSelection = () => {
+    return availableTables.filter(table => 
+      table.status === 'available' && 
+      (!formData.date || !formData.time || table.available_for_reservation !== false)
+    );
   };
 
   return (
@@ -1217,28 +1277,11 @@ const ReservationForm = ({ tables, onClose, onSuccess }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Table</label>
-            <select
-              value={formData.table_id}
-              onChange={(e) => setFormData({...formData, table_id: e.target.value})}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              required
-            >
-              <option value="">Sélectionner une table</option>
-              {tables.filter(table => table.status === 'available').map(table => (
-                <option key={table.id} value={table.id}>
-                  Table {table.number} ({table.seats} places)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className="block text-sm font-medium mb-1">Date</label>
             <input
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              onChange={(e) => setFormData({...formData, date: e.target.value, table_id: ''})}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               min={new Date().toISOString().split('T')[0]}
               required
@@ -1250,7 +1293,7 @@ const ReservationForm = ({ tables, onClose, onSuccess }) => {
             <input
               type="time"
               value={formData.time}
-              onChange={(e) => setFormData({...formData, time: e.target.value})}
+              onChange={(e) => setFormData({...formData, time: e.target.value, table_id: ''})}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             />
@@ -1261,13 +1304,54 @@ const ReservationForm = ({ tables, onClose, onSuccess }) => {
             <input
               type="number"
               value={formData.guests}
-              onChange={(e) => setFormData({...formData, guests: parseInt(e.target.value)})}
+              onChange={(e) => setFormData({...formData, guests: parseInt(e.target.value), table_id: ''})}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               min="1"
               max="10"
               required
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Table</label>
+            <select
+              value={formData.table_id}
+              onChange={(e) => setFormData({...formData, table_id: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
+            >
+              <option value="">Sélectionner une table</option>
+              {getAvailableTablesForSelection().map(table => (
+                <option 
+                  key={table.id} 
+                  value={table.id}
+                  disabled={formData.guests > table.seats}
+                >
+                  Table {table.number} ({table.seats} places)
+                  {formData.guests > table.seats ? ' - Trop petite' : ''}
+                  {formData.date && formData.time && table.available_for_reservation === false ? ' - Occupée' : ''}
+                </option>
+              ))}
+            </select>
+            {formData.date && formData.time && getAvailableTablesForSelection().length === 0 && (
+              <p className="text-sm text-red-600 mt-1">
+                Aucune table disponible pour cette date et heure. Veuillez choisir un autre créneau.
+              </p>
+            )}
+          </div>
+
+          {selectedTable && (
+            <div className="bg-orange-50 p-3 rounded-lg">
+              <p className="text-sm text-orange-800">
+                <strong>Table {selectedTable.number}</strong> - Capacité: {selectedTable.seats} personnes
+                {formData.guests > selectedTable.seats && (
+                  <span className="block text-red-600 font-medium">
+                    ⚠️ Trop d'invités pour cette table
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
 
           <div className="flex space-x-4 pt-4">
             <button
@@ -1279,7 +1363,7 @@ const ReservationForm = ({ tables, onClose, onSuccess }) => {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.table_id || (selectedTable && formData.guests > selectedTable.seats)}
               className="flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center"
             >
               {loading ? <LoadingSpinner size="small" /> : 'Réserver'}
@@ -1331,8 +1415,12 @@ const AuthPage = () => {
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-800 flex items-center">
-            <UtensilsCrossed className="w-8 h-8 mr-3 text-orange-600" />
-            Restaurant IA
+            <img 
+              src="https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png" 
+              alt="EURIA Food Logo" 
+              className="w-8 h-8 mr-3 object-contain"
+            />
+            EURIA Food
           </h1>
           <p className="text-gray-600 mt-2">
             {isLogin ? 'Connectez-vous à votre compte' : 'Créez votre compte'}
@@ -1433,7 +1521,7 @@ const AdminSidebar = ({ currentPage, setCurrentPage }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Tableau de bord', icon: <BarChart3 className="w-5 h-5" /> },
     { id: 'orders', label: 'Commandes', icon: <Package className="w-5 h-5" /> },
-    { id: 'menu', label: 'Menu', icon: <UtensilsCrossed className="w-5 h-5" /> },
+    { id: 'menu', label: 'Menu', icon: <ChefHat className="w-5 h-5" /> },
     { id: 'users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" /> },
     { id: 'tables', label: 'Tables', icon: <Calendar className="w-5 h-5" /> },
     { id: 'inventory', label: 'Inventaire', icon: <Receipt className="w-5 h-5" /> },
@@ -1604,7 +1692,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm text-slate-600">Chiffre d'affaires</p>
-              <p className="text-2xl font-bold text-slate-800">{stats.total_revenue.toFixed(2)} €</p>
+              <p className="text-2xl font-bold text-slate-800">{stats.total_revenue.toFixed(2)} Fcfa</p>
             </div>
           </div>
         </div>
@@ -1833,7 +1921,7 @@ const AdminOrders = () => {
                     {new Date(order.created_at).toLocaleDateString('fr-FR')}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">Client #{order.user_id.slice(0, 8)}</td>
-                  <td className="px-6 py-4 text-sm font-medium">{order.total.toFixed(2)} €</td>
+                  <td className="px-6 py-4 text-sm font-medium">{order.total.toFixed(2)} Fcfa</td>
                   <td className="px-6 py-4">
                     <StatusBadge status={order.status} />
                   </td>
@@ -1955,7 +2043,7 @@ const AdminMenu = () => {
               </div>
               <p className="text-gray-600 mb-4">{item.description}</p>
               <div className="flex justify-between items-center mb-4">
-                <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
+                <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} Fcfa</span>
                 <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
                   {item.category}
                 </span>
@@ -2006,7 +2094,11 @@ const AdminMenu = () => {
       {menuItems.length === 0 && (
         <div className="text-center py-12">
           <div className="text-center py-12">
-            <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+            <img 
+              src="https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png" 
+              alt="Aucun menu" 
+              className="w-16 h-16 mx-auto mb-4 object-contain opacity-40"
+            />
             <p className="text-gray-500 mt-4">Aucun article dans le menu</p>
           </div>
         </div>
@@ -2102,7 +2194,7 @@ const MenuItemForm = ({ item, onClose, onSuccess }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Prix (€)</label>
+            <label className="block text-sm font-medium mb-1">Prix (Fcfa)</label>
             <input
               type="number"
               step="0.01"
@@ -2627,24 +2719,18 @@ const AdminReports = ({ setCurrentPage }) => {
   const fetchReportData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       
-      // Fetch orders based on selected period
-      const response = await fetch('/api/orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Fetch all orders first
+      const response = await api.get('/api/orders');
+      const allOrders = response.data;
       
-      if (response.ok) {
-        const data = await response.json();
-        const filteredOrders = filterOrdersByPeriod(data.orders, selectedPeriod);
-        setOrders(filteredOrders);
-        calculateReportData(filteredOrders);
-      }
+      // Filter orders based on selected period
+      const filteredOrders = filterOrdersByPeriod(allOrders, selectedPeriod);
+      setOrders(filteredOrders);
+      calculateReportData(filteredOrders);
     } catch (error) {
       console.error('Erreur lors du chargement des rapports:', error);
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -2655,7 +2741,14 @@ const AdminReports = ({ setCurrentPage }) => {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     return orders.filter(order => {
-      const orderDate = new Date(order.createdAt);
+      // Handle different date formats from the API
+      let orderDate;
+      try {
+        orderDate = new Date(order.created_at || order.createdAt);
+      } catch (e) {
+        console.warn('Invalid date format for order:', order);
+        return false;
+      }
       
       switch (period) {
         case 'today':
@@ -2673,15 +2766,18 @@ const AdminReports = ({ setCurrentPage }) => {
   };
 
   const calculateReportData = (orders) => {
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalOrders = orders.length;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     // Calculate popular items
     const itemCounts = {};
     orders.forEach(order => {
-      order.items.forEach(item => {
-        itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+      const items = order.items || [];
+      items.forEach(item => {
+        const name = item.name || 'Article inconnu';
+        const quantity = item.quantity || 1;
+        itemCounts[name] = (itemCounts[name] || 0) + quantity;
       });
     });
 
@@ -2700,34 +2796,32 @@ const AdminReports = ({ setCurrentPage }) => {
 
   const generateReport = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/reports/generate?period=${selectedPeriod}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      toast.info('Génération du rapport en cours...');
+      
+      const response = await api.post(`/api/reports/generate?period=${selectedPeriod}`, {}, {
+        responseType: 'blob'
       });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `rapport-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-      }
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `rapport-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Rapport téléchargé avec succès!');
     } catch (error) {
       console.error('Erreur lors de la génération du rapport:', error);
+      toast.error('Erreur lors de la génération du rapport');
     }
   };
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-6 flex justify-center items-center min-h-96">
         <LoadingSpinner size="large" />
       </div>
     );
@@ -2786,7 +2880,7 @@ const AdminReports = ({ setCurrentPage }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Chiffre d'affaires</p>
-              <p className="text-2xl font-bold text-gray-900">{reportData.totalRevenue.toFixed(2)} €</p>
+              <p className="text-2xl font-bold text-gray-900">{reportData.totalRevenue.toFixed(2)} Fcfa</p>
             </div>
           </div>
         </div>
@@ -2814,7 +2908,7 @@ const AdminReports = ({ setCurrentPage }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Panier moyen</p>
-              <p className="text-2xl font-bold text-gray-900">{reportData.averageOrderValue.toFixed(2)} €</p>
+              <p className="text-2xl font-bold text-gray-900">{reportData.averageOrderValue.toFixed(2)} Fcfa</p>
             </div>
           </div>
         </div>
@@ -2863,15 +2957,15 @@ const AdminReports = ({ setCurrentPage }) => {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Commandes récentes</h2>
           <div className="space-y-4">
             {orders.slice(0, 5).map((order) => (
-              <div key={order._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={order.id || order._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
-                  <p className="font-medium text-gray-900">#{order._id.slice(-6)}</p>
+                  <p className="font-medium text-gray-900">#{(order.id || order._id || '').slice(-6)}</p>
                   <p className="text-sm text-gray-500">
-                    {new Date(order.createdAt).toLocaleDateString('fr-FR')}
+                    {new Date(order.created_at || order.createdAt).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-gray-900">{order.total.toFixed(2)} €</p>
+                  <p className="font-medium text-gray-900">{(order.total || 0).toFixed(2)} Fcfa</p>
                   <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                     order.status === 'delivered' ? 'bg-green-100 text-green-800' :
                     order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
@@ -2883,6 +2977,11 @@ const AdminReports = ({ setCurrentPage }) => {
                 </div>
               </div>
             ))}
+            {orders.length === 0 && (
+              <div className="text-center py-4">
+                <p className="text-gray-500">Aucune commande pour cette période</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2915,15 +3014,15 @@ const AdminReports = ({ setCurrentPage }) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {orders.map((order) => (
-                <tr key={order._id} className="hover:bg-gray-50">
+                <tr key={order.id || order._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-medium text-gray-900">#{order._id.slice(-6)}</span>
+                    <span className="font-medium text-gray-900">#{(order.id || order._id || '').slice(-6)}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                    {order.customerName || 'Client anonyme'}
+                    {order.customer_name || order.customerName || 'Client anonyme'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                    {new Date(order.createdAt).toLocaleDateString('fr-FR', {
+                    {new Date(order.created_at || order.createdAt).toLocaleDateString('fr-FR', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -2932,7 +3031,7 @@ const AdminReports = ({ setCurrentPage }) => {
                     })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                    {order.total.toFixed(2)} €
+                    {(order.total || 0).toFixed(2)} Fcfa
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
@@ -2980,6 +3079,15 @@ const AppContent = ({ currentPage, setCurrentPage }) => {
   const { user, loading } = useAuth();
 
   useEffect(() => {
+    // Set default page based on user role when user loads
+    if (user && !currentPage) {
+      if (user.role === 'admin') {
+        setCurrentPage('dashboard');
+      } else {
+        setCurrentPage('home');
+      }
+    }
+
     // Handle hash navigation for client pages
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
@@ -2992,7 +3100,7 @@ const AppContent = ({ currentPage, setCurrentPage }) => {
     handleHashChange(); // Check initial hash
 
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [user, setCurrentPage]);
+  }, [user, setCurrentPage, currentPage]);
 
   if (loading) {
     return (
@@ -3011,7 +3119,7 @@ const AppContent = ({ currentPage, setCurrentPage }) => {
       <div className="flex">
         <AdminSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
         <div className="flex-1 ml-64">
-          {currentPage === 'dashboard' && <AdminDashboard setCurrentPage={setCurrentPage} />}
+          {(!currentPage || currentPage === 'dashboard') && <AdminDashboard setCurrentPage={setCurrentPage} />}
           {currentPage === 'orders' && <AdminOrders />}
           {currentPage === 'menu' && <AdminMenu />}
           {currentPage === 'users' && <AdminUsers />}

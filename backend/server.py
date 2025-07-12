@@ -1,9 +1,10 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
 import os
 import logging
 from pathlib import Path
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta
-import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from ai_service import ai_service
 from inventory_models import *
@@ -19,8 +20,10 @@ from models import *
 from payment_service import payment_service
 from report_service import report_service
 import stripe
+import stripe.error
 from datetime import date
 import base64
+from jose import JWTError, jwt
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -165,7 +168,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(hours=24)  # Extended to 24 hours
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -175,13 +178,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            logger.error("Token payload missing user ID")
+            raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
         user = await db.users.find_one({"id": user_id})
         if user is None:
+            logger.error(f"User not found for ID: {user_id}")
             raise HTTPException(status_code=401, detail="User not found")
         return user
-    except jwt.PyJWTError:
+    except jwt.ExpiredSignatureError:
+        logger.error("Token has expired")
+        raise HTTPException(status_code=401, detail="Token expired")
+    except JWTError as e:
+        logger.error(f"JWT Error: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 # Auth Routes
 @api_router.post("/auth/register")
@@ -306,6 +318,96 @@ async def create_inventory_item(item: InventoryCreate, current_user: dict = Depe
     await db.inventory.insert_one(item_obj.dict())
     return item_obj
 
+@api_router.put("/inventory/{item_id}")
+async def update_inventory_item(
+    item_id: str,
+    update_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if item exists
+    existing_item = await db.inventory.find_one({"id": item_id})
+    if not existing_item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    
+    # Update the item
+    await db.inventory.update_one(
+        {"id": item_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated item
+    updated_item = await db.inventory.find_one({"id": item_id})
+    return {"message": "Inventory item updated successfully", "item": updated_item}
+
+@api_router.delete("/inventory/{item_id}")
+async def delete_inventory_item(
+    item_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if item exists
+    existing_item = await db.inventory.find_one({"id": item_id})
+    if not existing_item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    
+    # Delete the item
+    await db.inventory.delete_one({"id": item_id})
+    return {"message": "Inventory item deleted successfully"}
+
+@api_router.post("/inventory/sync-with-menu")
+async def sync_inventory_with_menu(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all menu items
+    menu_items = await db.menu.find().to_list(1000)
+    
+    # Get existing inventory items
+    existing_inventory = await db.inventory.find().to_list(1000)
+    existing_items_dict = {item["name"]: item for item in existing_inventory}
+    
+    created_count = 0
+    updated_count = 0
+    
+    for menu_item in menu_items:
+        if menu_item["name"] not in existing_items_dict:
+            # Create new inventory item based on menu item
+            inventory_item = {
+                "id": str(uuid.uuid4()),
+                "name": menu_item["name"],
+                "category": menu_item.get("category", "General"),
+                "current_stock": 50,  # Default starting stock
+                "min_stock_level": 10,  # Default minimum level
+                "max_stock_level": 100,  # Default maximum level
+                "unit": "pièces",  # Default unit
+                "cost_per_unit": menu_item.get("price", 0) * 0.6,  # Estimate cost as 60% of selling price
+                "supplier": "Fournisseur par défaut",
+                "last_restocked": datetime.utcnow(),
+                "expiry_date": datetime.utcnow() + timedelta(days=30)  # Default 30 days expiry
+            }
+            await db.inventory.insert_one(inventory_item)
+            created_count += 1
+        else:
+            # Update existing item if needed
+            existing_item = existing_items_dict[menu_item["name"]]
+            if existing_item.get("category") != menu_item.get("category"):
+                await db.inventory.update_one(
+                    {"id": existing_item["id"]},
+                    {"$set": {"category": menu_item.get("category", "General")}}
+                )
+                updated_count += 1
+    
+    return {
+        "message": "Inventory synchronized with menu",
+        "created_items": created_count,
+        "updated_items": updated_count
+    }
+
 @api_router.get("/inventory/alerts")
 async def get_stock_alerts(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
@@ -337,13 +439,26 @@ async def get_menu():
 
 @api_router.post("/menu", response_model=MenuItem)
 async def create_menu_item(item: MenuItemCreate, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    item_dict = item.dict()
-    item_obj = MenuItem(**item_dict)
-    await db.menu_items.insert_one(item_obj.dict())
-    return item_obj
+    try:
+        logger.info(f"Creating menu item: {item.name} by user: {current_user.get('email', 'unknown')}")
+        
+        if current_user["role"] != "admin":
+            logger.warning(f"Non-admin user {current_user.get('email')} attempted to create menu item")
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        item_dict = item.dict()
+        item_obj = MenuItem(**item_dict)
+        
+        # Insert into database
+        result = await db.menu_items.insert_one(item_obj.dict())
+        logger.info(f"Menu item created successfully with ID: {result.inserted_id}")
+        
+        return item_obj
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating menu item: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @api_router.get("/menu/categories")
 async def get_menu_categories():
@@ -540,7 +655,7 @@ async def delete_order(order_id: str, current_user: dict = Depends(get_current_u
 
 # Routes Rapports
 @api_router.get("/reports/daily")
-async def get_daily_report(report_date: str = None, current_user: dict = Depends(get_current_user)):
+async def get_daily_report(report_date: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -587,6 +702,8 @@ async def get_invoice(order_id: str, current_user: dict = Depends(get_current_us
     try:
         # Récupérer les infos utilisateur
         user = await db.users.find_one({"id": order["user_id"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
         
         # Générer la facture PDF
         pdf_content = report_service.generate_invoice(order, user)
@@ -599,6 +716,47 @@ async def get_invoice(order_id: str, current_user: dict = Depends(get_current_us
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur génération facture: {str(e)}")
+
+@api_router.post("/reports/generate")
+async def generate_report(period: str = Query(...), current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Calculate date range based on period
+        now = datetime.now()
+        
+        if period == "today":
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        elif period == "week":
+            start_date = now - timedelta(days=7)
+            end_date = now
+        elif period == "month":
+            start_date = now - timedelta(days=30)
+            end_date = now
+        else:
+            raise HTTPException(status_code=400, detail="Invalid period")
+        
+        # Get orders for the period
+        orders = await db.orders.find({
+            "created_at": {
+                "$gte": start_date.isoformat(),
+                "$lte": end_date.isoformat()
+            }
+        }).to_list(1000)
+        
+        # Generate the PDF report
+        pdf_content = report_service.generate_period_report(orders, period, start_date, end_date)
+        
+        return Response(
+            content=pdf_content,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=rapport_{period}_{now.strftime('%Y%m%d')}.pdf"}
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur génération rapport: {str(e)}")
 
 # Routes Avis clients
 @api_router.post("/reviews", response_model=Review)
@@ -711,6 +869,52 @@ async def create_table(table: Table, current_user: dict = Depends(get_current_us
 
 @api_router.post("/reservations", response_model=Reservation)
 async def create_reservation(reservation: ReservationCreate, current_user: dict = Depends(get_current_user)):
+    # Validate table exists and get table info
+    table = await db.tables.find_one({"id": reservation.table_id})
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    
+    # Validate guest count doesn't exceed table capacity
+    if reservation.guests > table["seats"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Too many guests for this table. Maximum capacity is {table['seats']} guests."
+        )
+    
+    # Check for existing reservations at the same time (2-hour window)
+    reservation_datetime = reservation.date
+    start_window = reservation_datetime - timedelta(hours=1)
+    end_window = reservation_datetime + timedelta(hours=1)
+    
+    existing_reservation = await db.reservations.find_one({
+        "table_id": reservation.table_id,
+        "date": {
+            "$gte": start_window.isoformat(),
+            "$lte": end_window.isoformat()
+        },
+        "status": {"$ne": "cancelled"}
+    })
+    
+    if existing_reservation:
+        raise HTTPException(
+            status_code=409, 
+            detail="This table is already reserved for this time slot. Please choose a different time or table."
+        )
+    
+    # Check for duplicate reservation by same user
+    duplicate_reservation = await db.reservations.find_one({
+        "user_id": current_user["id"],
+        "table_id": reservation.table_id,
+        "date": reservation_datetime.isoformat(),
+        "status": {"$ne": "cancelled"}
+    })
+    
+    if duplicate_reservation:
+        raise HTTPException(
+            status_code=409,
+            detail="You already have a reservation for this table at this time."
+        )
+    
     reservation_dict = reservation.dict()
     reservation_dict["user_id"] = current_user["id"]
     reservation_obj = Reservation(**reservation_dict)
@@ -724,6 +928,82 @@ async def get_reservations(current_user: dict = Depends(get_current_user)):
     else:
         reservations = await db.reservations.find({"user_id": current_user["id"]}).to_list(100)
     return [Reservation(**reservation) for reservation in reservations]
+
+@api_router.get("/tables/availability")
+async def check_table_availability(
+    date: str = Query(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Check which tables are available for a specific date and time"""
+    try:
+        reservation_datetime = datetime.fromisoformat(date.replace('Z', '+00:00'))
+        start_window = reservation_datetime - timedelta(hours=1)
+        end_window = reservation_datetime + timedelta(hours=1)
+        
+        # Get all tables
+        all_tables = await db.tables.find().to_list(100)
+        
+        # Get existing reservations in the time window
+        existing_reservations = await db.reservations.find({
+            "date": {
+                "$gte": start_window.isoformat(),
+                "$lte": end_window.isoformat()
+            },
+            "status": {"$ne": "cancelled"}
+        }).to_list(100)
+        
+        # Mark tables as unavailable if they have reservations
+        reserved_table_ids = {res["table_id"] for res in existing_reservations}
+        
+        for table in all_tables:
+            table["available_for_reservation"] = table["id"] not in reserved_table_ids
+            
+        return {"tables": all_tables}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+
+@api_router.put("/reservations/{reservation_id}")
+async def update_reservation(
+    reservation_id: str, 
+    update_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    # Check if reservation exists and user has permission using custom id field
+    existing_reservation = await db.reservations.find_one({"id": reservation_id})
+    if not existing_reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    
+    # Allow admin to update any reservation, or user to update their own
+    if current_user["role"] != "admin" and existing_reservation["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    # Update the reservation
+    await db.reservations.update_one(
+        {"id": reservation_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated reservation
+    updated_reservation = await db.reservations.find_one({"id": reservation_id})
+    return {"message": "Reservation updated successfully", "reservation": updated_reservation}
+
+@api_router.delete("/reservations/{reservation_id}")
+async def delete_reservation(
+    reservation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    # Check if reservation exists and user has permission using custom id field
+    existing_reservation = await db.reservations.find_one({"id": reservation_id})
+    if not existing_reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    
+    # Allow admin to delete any reservation, or user to delete their own
+    if current_user["role"] != "admin" and existing_reservation["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    # Delete the reservation
+    await db.reservations.delete_one({"id": reservation_id})
+    return {"message": "Reservation deleted successfully"}
 
 @api_router.get("/stats/dashboard")
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
@@ -762,10 +1042,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
 
 # Initialize demo data
 @app.on_event("startup")
@@ -868,3 +1144,25 @@ async def startup_event():
         ]
         await db.inventory.insert_many(demo_inventory)
         logger.info("Demo inventory created")
+
+# Include the router in the main app
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=8001, reload=True)
