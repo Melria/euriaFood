@@ -14,13 +14,18 @@
 2. Se connecter avec GitHub
 3. "New Project" → "Deploy from GitHub repo"
 4. Sélectionner votre repository
-5. Choisir le dossier `backend`
-6. Ajouter les variables d'environnement :
+5. **IMPORTANT : Choisir le dossier `backend` comme Root Directory**
+6. Dans les Settings du service :
+   - Root Directory : `/backend`
+   - Build Command : `pip install -r requirements.txt`
+   - Start Command : `python -m uvicorn server:app --host 0.0.0.0 --port $PORT`
+7. Ajouter les variables d'environnement :
    ```
    DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/restaurant_db
    DB_NAME=restaurant_db
    JWT_SECRET=votre-secret-tres-long-et-complexe
    CORS_ORIGINS=https://votre-frontend.vercel.app
+   PYTHONPATH=/app
    ```
 
 ### Étape 3 : Déployer le Frontend sur Vercel
