@@ -5,6 +5,8 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Définir le répertoire de travail
 WORKDIR /app
@@ -16,17 +18,19 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libffi-dev \
     libssl-dev \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Mettre à jour pip
-RUN pip install --upgrade pip
+# Vérifier que pip est bien installé et le mettre à jour
+RUN python3 -m pip --version
+RUN python3 -m pip install --upgrade pip setuptools wheel
 
 # Copier d'abord requirements.txt pour utiliser le cache Docker
 COPY requirements.txt .
 
-# Installer les dépendances Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Installer les dépendances Python en utilisant python3 -m pip
+RUN python3 -m pip install -r requirements.txt
 
 # Copier le code source
 COPY . .
@@ -40,4 +44,4 @@ USER appuser
 EXPOSE 8000
 
 # Commande de démarrage avec auto-détection du port
-CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["python3", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
