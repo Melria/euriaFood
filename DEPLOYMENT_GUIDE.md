@@ -24,7 +24,7 @@
    DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/restaurant_db
    DB_NAME=restaurant_db
    JWT_SECRET=votre-secret-tres-long-et-complexe
-   CORS_ORIGINS=https://votre-frontend.vercel.app
+   CORS_ORIGINS=https://emergent-prieh7zyl-melrias-projects.vercel.app
    PYTHONPATH=/app
    ```
 
@@ -34,7 +34,7 @@
 3. Suivre les instructions
 4. Configurer la variable d'environnement :
    ```
-   REACT_APP_BACKEND_URL=https://votre-backend.railway.app
+   REACT_APP_BACKEND_URL=https://emergent-app-2i83.onrender.com
    ```
 
 ## Option 2 : Render (Tout en un)
