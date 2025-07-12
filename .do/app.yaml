@@ -1,0 +1,31 @@
+# .do/app.yaml - Configuration DigitalOcean
+name: euria-food-app
+services:
+- name: backend
+  source_dir: /backend
+  github:
+    repo: votre-username/Emergent-app
+    branch: main
+  run_command: uvicorn server:app --host 0.0.0.0 --port $PORT
+  environment_slug: python
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: DATABASE_URL
+    value: mongodb+srv://username:password@cluster.mongodb.net/restaurant_db
+  - key: DB_NAME
+    value: restaurant_db
+  - key: JWT_SECRET
+    type: SECRET
+    value: your-jwt-secret
+
+static_sites:
+- name: frontend
+  source_dir: /frontend
+  github:
+    repo: votre-username/Emergent-app
+    branch: main
+  build_command: npm run build
+  envs:
+  - key: REACT_APP_BACKEND_URL
+    value: ${backend.PUBLIC_URL}
