@@ -1,5 +1,60 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import axios from 'axios';
+import { 
+  ShoppingCart, 
+  User, 
+  LogOut, 
+  Plus, 
+  Minus, 
+  Star,
+  CreditCard,
+  Banknote,
+  Download,
+  Edit,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
+  BarChart3,
+  Users,
+  Package,
+  Calendar,
+  Bell,
+  Heart,
+  X,
+  Home,
+  ChefHat,
+  UtensilsCrossed,
+  Receipt,
+  Settings,
+  TrendingUp,
+  Brain,
+  Bot,
+  Zap,
+  Target,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  ShoppingBag,
+  UserPlus,
+  Search,
+  Filter,
+  BookOpen,
+  Phone,
+  Mail,
+  MapPin,
+  Award,
+  Sparkles,
+  PieChart,
+  Activity,
+  Smartphone,
+  Wifi,
+  Shield,
+  Tag,
+  TrendingDown,
+  BarChart2
+} from 'lucide-react';
 import './App.css';
 
 // API Configuration
@@ -69,12 +124,12 @@ const LoadingSpinner = ({ size = 'medium' }) => {
 // Status Badge Component
 const StatusBadge = ({ status }) => {
   const statusConfig = {
-    pending: { color: 'bg-yellow-100 text-yellow-800', icon: '⏳', text: 'En attente' },
-    confirmed: { color: 'bg-blue-100 text-blue-800', icon: '✅', text: 'Confirmé' },
-    preparing: { color: 'bg-orange-100 text-orange-800', icon: '👨‍🍳', text: 'En préparation' },
-    ready: { color: 'bg-green-100 text-green-800', icon: '🍽️', text: 'Prêt' },
-    delivered: { color: 'bg-gray-100 text-gray-800', icon: '📦', text: 'Livré' },
-    cancelled: { color: 'bg-red-100 text-red-800', icon: '❌', text: 'Annulé' }
+    pending: { color: 'badge-warning', icon: <Clock className="w-4 h-4" />, text: 'En attente' },
+    confirmed: { color: 'badge-info', icon: <CheckCircle className="w-4 h-4" />, text: 'Confirmé' },
+    preparing: { color: 'badge-secondary', icon: <ChefHat className="w-4 h-4" />, text: 'En préparation' },
+    ready: { color: 'badge-success', icon: <CheckCircle className="w-4 h-4" />, text: 'Prêt' },
+    delivered: { color: 'badge-success', icon: <Package className="w-4 h-4" />, text: 'Livré' },
+    cancelled: { color: 'badge-error', icon: <X className="w-4 h-4" />, text: 'Annulé' }
   };
 
   const config = statusConfig[status] || statusConfig.pending;
@@ -221,7 +276,10 @@ const ClientHeader = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-orange-600">🍽️ Restaurant IA</h1>
+            <h1 className="text-2xl font-bold text-orange-600 flex items-center">
+              <UtensilsCrossed className="w-8 h-8 mr-3" />
+              Restaurant IA
+            </h1>
           </div>
           
           <nav className="hidden md:flex space-x-8">
@@ -237,7 +295,7 @@ const ClientHeader = () => {
               onClick={() => setIsCartOpen(true)}
               className="relative p-2 text-gray-700 hover:text-orange-600 transition-colors"
             >
-              <span className="text-2xl">🛒</span>
+              <ShoppingCart className="w-6 h-6" />
               {getTotalItems() > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
                   {getTotalItems()}
@@ -251,9 +309,11 @@ const ClientHeader = () => {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center space-x-2 text-gray-700 hover:text-orange-600 transition-colors"
               >
-                <span className="text-2xl">👤</span>
+                <User className="w-6 h-6" />
                 <span className="hidden md:block">{user?.name}</span>
-                <span className="text-sm">▼</span>
+                <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </button>
 
               {showUserMenu && (
@@ -262,20 +322,24 @@ const ClientHeader = () => {
                     <div className="font-medium">{user?.name}</div>
                     <div className="text-gray-500">{user?.email}</div>
                   </div>
-                  <a href="#profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    Mon Profil
+                  <a href="#profile" className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                    <User className="w-4 h-4" />
+                    <span>Mon Profil</span>
                   </a>
-                  <a href="#orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    Mes Commandes
+                  <a href="#orders" className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                    <Clock className="w-4 h-4" />
+                    <span>Mes Commandes</span>
                   </a>
-                  <a href="#reservations" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    Mes Réservations
+                  <a href="#reservations" className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>Mes Réservations</span>
                   </a>
                   <button
                     onClick={logout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center space-x-2"
                   >
-                    Déconnexion
+                    <LogOut className="w-4 h-4" />
+                    <span>Déconnexion</span>
                   </button>
                 </div>
               )}
@@ -319,7 +383,7 @@ const CartModal = () => {
 
             {cartItems.length === 0 ? (
               <div className="text-center py-8">
-                <span className="text-6xl">🛒</span>
+                <ShoppingCart className="w-16 h-16 mx-auto text-gray-400" />
                 <p className="text-gray-500 mt-4">Votre panier est vide</p>
               </div>
             ) : (
@@ -353,7 +417,7 @@ const CartModal = () => {
                             onClick={() => removeFromCart(item.id)}
                             className="ml-2 text-red-500 hover:text-red-700"
                           >
-                            🗑️
+                    <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -600,9 +664,12 @@ const ClientHomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-orange-400 to-red-600 text-white py-20">
+      <section className="bg-gradient-to-r from-orange-600 to-red-600 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-6xl font-bold mb-6">🍽️ Restaurant IA</h1>
+          <h1 className="text-6xl font-bold mb-6 flex items-center justify-center">
+            <UtensilsCrossed className="w-16 h-16 mr-4 text-orange-600" />
+            <span>Restaurant IA</span>
+          </h1>
           <p className="text-xl mb-8 opacity-90">
             Découvrez une expérience culinaire unique avec des recommandations personnalisées par intelligence artificielle
           </p>
@@ -620,20 +687,32 @@ const ClientHomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12">Nos Services</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="text-4xl mb-4">🤖</div>
-              <h3 className="text-xl font-bold mb-2">Recommandations IA</h3>
-              <p className="text-gray-600">Des suggestions personnalisées basées sur vos préférences et votre historique</p>
+            <div className="text-center p-6 card">
+              <div className="flex justify-center mb-4">
+                <div className="p-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-full">
+                  <Bot className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-slate-800">Recommandations IA</h3>
+              <p className="text-slate-600">Des suggestions personnalisées basées sur vos préférences et votre historique</p>
             </div>
-            <div className="text-center p-6">
-              <div className="text-4xl mb-4">🚚</div>
-              <h3 className="text-xl font-bold mb-2">Livraison Rapide</h3>
-              <p className="text-gray-600">Livraison en 30 minutes ou moins dans toute la ville</p>
+            <div className="text-center p-6 card">
+              <div className="flex justify-center mb-4">
+                <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full">
+                  <Zap className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-slate-800">Livraison Rapide</h3>
+              <p className="text-slate-600">Livraison en 30 minutes ou moins dans toute la ville</p>
             </div>
-            <div className="text-center p-6">
-              <div className="text-4xl mb-4">📱</div>
-              <h3 className="text-xl font-bold mb-2">Commande Facile</h3>
-              <p className="text-gray-600">Interface intuitive pour commander en quelques clics</p>
+            <div className="text-center p-6 card">
+              <div className="flex justify-center mb-4">
+                <div className="p-4 bg-gradient-to-br from-rose-500 to-pink-500 rounded-full">
+                  <Smartphone className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-slate-800">Commande Facile</h3>
+              <p className="text-slate-600">Interface intuitive pour commander en quelques clics</p>
             </div>
           </div>
         </div>
@@ -750,9 +829,9 @@ const MenuPage = () => {
 
       {/* AI Recommendations */}
       {aiRecommendations.length > 0 && (
-        <div className="mb-8 p-6 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 flex items-center">
-            <span className="mr-2">🤖</span>
+        <div className="mb-8 p-6 ai-card">
+          <h2 className="text-xl font-bold mb-4 flex items-center text-orange-800">
+            <Bot className="w-6 h-6 mr-3" />
             Recommandations IA pour vous
           </h2>
           <div className="grid md:grid-cols-3 gap-4">
@@ -761,7 +840,7 @@ const MenuPage = () => {
                 <h3 className="font-medium">{rec.name}</h3>
                 <p className="text-sm text-gray-600 mt-1">{rec.reason}</p>
                 <div className="mt-2">
-                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                  <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
                     Confiance: {(rec.confidence_score * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -791,7 +870,7 @@ const MenuPage = () => {
               className={`px-4 py-2 rounded-lg transition-colors ${
                 selectedCategory === category
                   ? 'bg-orange-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
               }`}
             >
               {category === 'all' ? 'Tous' : category}
@@ -811,12 +890,12 @@ const MenuPage = () => {
             />
             <div className="p-6">
               <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-bold">{item.name}</h3>
-                <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
+                <h3 className="text-xl font-bold text-slate-800">{item.name}</h3>
+                <span className="badge-secondary">
                   {item.category}
                 </span>
               </div>
-              <p className="text-gray-600 mb-4">{item.description}</p>
+              <p className="text-slate-600 mb-4">{item.description}</p>
               <div className="flex justify-between items-center">
                 <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} €</span>
                 <button
@@ -833,8 +912,10 @@ const MenuPage = () => {
 
       {filteredItems.length === 0 && (
         <div className="text-center py-12">
-          <span className="text-6xl">🍽️</span>
-          <p className="text-gray-500 mt-4">Aucun plat trouvé</p>
+          <div className="text-center py-12">
+            <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+            <p className="text-gray-500 mt-4">Aucun plat trouvé</p>
+          </div>
         </div>
       )}
     </div>
@@ -909,7 +990,7 @@ const ClientOrdersPage = () => {
 
       {orders.length === 0 ? (
         <div className="text-center py-12">
-          <span className="text-6xl">📦</span>
+          <Package className="w-16 h-16 mx-auto text-slate-400 mb-4" />
           <p className="text-gray-500 mt-4">Aucune commande trouvée</p>
         </div>
       ) : (
@@ -1041,8 +1122,10 @@ const ClientReservationsPage = () => {
 
       {reservations.length === 0 ? (
         <div className="text-center py-12">
-          <span className="text-6xl">📅</span>
-          <p className="text-gray-500 mt-4">Aucune réservation trouvée</p>
+          <div className="text-center py-12">
+            <Calendar className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+            <p className="text-gray-500 mt-4">Aucune réservation trouvée</p>
+          </div>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1244,10 +1327,13 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-400 to-red-600 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-600 to-red-600 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">🍽️ Restaurant IA</h1>
+          <h1 className="text-3xl font-bold text-slate-800 flex items-center">
+            <UtensilsCrossed className="w-8 h-8 mr-3 text-orange-600" />
+            Restaurant IA
+          </h1>
           <p className="text-gray-600 mt-2">
             {isLogin ? 'Connectez-vous à votre compte' : 'Créez votre compte'}
           </p>
@@ -1345,19 +1431,22 @@ const AdminSidebar = ({ currentPage, setCurrentPage }) => {
   const { logout } = useAuth();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
-    { id: 'orders', label: 'Commandes', icon: '📦' },
-    { id: 'menu', label: 'Menu', icon: '🍽️' },
-    { id: 'users', label: 'Utilisateurs', icon: '👥' },
-    { id: 'tables', label: 'Tables', icon: '🪑' },
-    { id: 'inventory', label: 'Inventaire', icon: '📋' },
-    { id: 'reports', label: 'Rapports', icon: '📈' }
+    { id: 'dashboard', label: 'Tableau de bord', icon: <BarChart3 className="w-5 h-5" /> },
+    { id: 'orders', label: 'Commandes', icon: <Package className="w-5 h-5" /> },
+    { id: 'menu', label: 'Menu', icon: <UtensilsCrossed className="w-5 h-5" /> },
+    { id: 'users', label: 'Utilisateurs', icon: <Users className="w-5 h-5" /> },
+    { id: 'tables', label: 'Tables', icon: <Calendar className="w-5 h-5" /> },
+    { id: 'inventory', label: 'Inventaire', icon: <Receipt className="w-5 h-5" /> },
+    { id: 'reports', label: 'Rapports', icon: <TrendingUp className="w-5 h-5" /> }
   ];
 
   return (
     <div className="w-64 bg-white shadow-lg h-screen fixed left-0 top-0 z-30">
       <div className="p-6">
-        <h1 className="text-xl font-bold text-orange-600">🍽️ Admin Panel</h1>
+        <h1 className="text-xl font-bold text-orange-600 flex items-center">
+          <Settings className="w-6 h-6 mr-2" />
+          Admin Panel
+        </h1>
       </div>
       
       <nav className="mt-6">
@@ -1365,8 +1454,8 @@ const AdminSidebar = ({ currentPage, setCurrentPage }) => {
           <button
             key={item.id}
             onClick={() => setCurrentPage(item.id)}
-            className={`w-full flex items-center px-6 py-3 text-left hover:bg-gray-100 transition-colors ${
-              currentPage === item.id ? 'bg-orange-100 text-orange-800 border-r-4 border-orange-600' : 'text-gray-700'
+            className={`w-full flex items-center px-6 py-3 text-left hover:bg-slate-100 transition-colors ${
+              currentPage === item.id ? 'bg-orange-100 text-orange-800 border-r-4 border-orange-600' : 'text-slate-700'
             }`}
           >
             <span className="mr-3">{item.icon}</span>
@@ -1380,7 +1469,7 @@ const AdminSidebar = ({ currentPage, setCurrentPage }) => {
           onClick={logout}
           className="w-full flex items-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
-          <span className="mr-3">🚪</span>
+          <LogOut className="w-5 h-5 mr-3" />
           Déconnexion
         </button>
       </div>
@@ -1389,7 +1478,7 @@ const AdminSidebar = ({ currentPage, setCurrentPage }) => {
 };
 
 // Admin Dashboard Component
-const AdminDashboard = () => {
+const AdminDashboard = ({ setCurrentPage }) => {
   const [stats, setStats] = useState({
     total_orders: 0,
     total_users: 0,
@@ -1397,6 +1486,8 @@ const AdminDashboard = () => {
     today_orders: 0
   });
   const [loading, setLoading] = useState(true);
+  const [aiInsights, setAiInsights] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -1410,6 +1501,41 @@ const AdminDashboard = () => {
       toast.error('Erreur lors du chargement des statistiques');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateAIInsights = async () => {
+    setLoadingAI(true);
+    try {
+      const response = await api.get('/api/ai/insights');
+      if (response.data.status === 'success') {
+        setAiInsights(response.data.insights);
+        toast.success('Insights IA générés avec succès!');
+      } else {
+        toast.error('Erreur lors de la génération des insights IA');
+      }
+    } catch (error) {
+      console.error('Erreur insights IA:', error);
+      toast.error('Erreur lors de la génération des insights IA');
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
+  const optimizePricing = async () => {
+    setLoadingAI(true);
+    try {
+      const response = await api.post('/api/ai/pricing/optimize');
+      if (response.data.status === 'success') {
+        toast.success('Optimisation des prix générée! Consultez la section Menu pour voir les suggestions.');
+      } else {
+        toast.error('Erreur lors de l\'optimisation des prix');
+      }
+    } catch (error) {
+      console.error('Erreur optimisation prix:', error);
+      toast.error('Erreur lors de l\'optimisation des prix');
+    } finally {
+      setLoadingAI(false);
     }
   };
 
@@ -1447,50 +1573,50 @@ const AdminDashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="stat-card">
           <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <span className="text-2xl">📦</span>
+            <div className="stat-icon from-blue-500 to-indigo-500">
+              <Package className="w-6 h-6 text-white" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600">Total Commandes</p>
-              <p className="text-2xl font-bold">{stats.total_orders}</p>
+              <p className="text-sm text-slate-600">Total Commandes</p>
+              <p className="text-2xl font-bold text-slate-800">{stats.total_orders}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="stat-card">
           <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <span className="text-2xl">👥</span>
+            <div className="stat-icon from-emerald-500 to-teal-500">
+              <Users className="w-6 h-6 text-white" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600">Utilisateurs</p>
-              <p className="text-2xl font-bold">{stats.total_users}</p>
+              <p className="text-sm text-slate-600">Utilisateurs</p>
+              <p className="text-2xl font-bold text-slate-800">{stats.total_users}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="stat-card">
           <div className="flex items-center">
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <span className="text-2xl">💰</span>
+            <div className="stat-icon from-orange-500 to-red-500">
+              <DollarSign className="w-6 h-6 text-white" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600">Chiffre d'affaires</p>
-              <p className="text-2xl font-bold">{stats.total_revenue.toFixed(2)} €</p>
+              <p className="text-sm text-slate-600">Chiffre d'affaires</p>
+              <p className="text-2xl font-bold text-slate-800">{stats.total_revenue.toFixed(2)} €</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="stat-card">
           <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <span className="text-2xl">📅</span>
+            <div className="stat-icon from-orange-500 to-amber-500">
+              <Calendar className="w-6 h-6 text-white" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600">Commandes aujourd'hui</p>
-              <p className="text-2xl font-bold">{stats.today_orders}</p>
+              <p className="text-sm text-slate-600">Commandes aujourd'hui</p>
+              <p className="text-2xl font-bold text-slate-800">{stats.today_orders}</p>
             </div>
           </div>
         </div>
@@ -1502,26 +1628,123 @@ const AdminDashboard = () => {
         <div className="grid md:grid-cols-3 gap-4">
           <button
             onClick={downloadDailyReport}
-            className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left"
+            className="p-4 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors text-left border border-blue-100 hover:border-blue-200"
           >
-            <div className="text-2xl mb-2">📊</div>
-            <h3 className="font-medium">Rapport journalier</h3>
-            <p className="text-sm text-gray-600">Télécharger le rapport du jour</p>
+            <div className="text-blue-600 mb-3">
+              <BarChart3 className="w-8 h-8" />
+            </div>
+            <h3 className="font-semibold text-slate-800">Rapport journalier</h3>
+            <p className="text-sm text-slate-600">Télécharger le rapport du jour</p>
           </button>
 
-          <button className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left">
-            <div className="text-2xl mb-2">🍽️</div>
-            <h3 className="font-medium">Nouveau plat</h3>
-            <p className="text-sm text-gray-600">Ajouter un article au menu</p>
+          <button 
+            onClick={() => setCurrentPage('menu')}
+            className="p-4 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors text-left border border-emerald-100 hover:border-emerald-200"
+          >
+            <div className="text-emerald-600 mb-3">
+              <ChefHat className="w-8 h-8" />
+            </div>
+            <h3 className="font-semibold text-slate-800">Nouveau plat</h3>
+            <p className="text-sm text-slate-600">Ajouter un article au menu</p>
           </button>
 
-          <button className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-left">
-            <div className="text-2xl mb-2">📋</div>
-            <h3 className="font-medium">Inventaire</h3>
-            <p className="text-sm text-gray-600">Gérer le stock</p>
+          <button 
+            onClick={() => setCurrentPage('inventory')}
+            className="p-4 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors text-left border border-amber-100 hover:border-amber-200"
+          >
+            <div className="text-amber-600 mb-3">
+              <Receipt className="w-8 h-8" />
+            </div>
+            <h3 className="font-semibold text-slate-800">Inventaire</h3>
+            <p className="text-sm text-slate-600">Gérer le stock</p>
           </button>
         </div>
       </div>
+
+      {/* AI Analytics Section */}
+      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow-sm p-6 border border-orange-100">
+        <h2 className="text-xl font-bold mb-4 flex items-center text-orange-800">
+          <Brain className="w-6 h-6 mr-3" />
+          Intelligence Artificielle
+        </h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          <button 
+            onClick={() => generateAIInsights()}
+            className="p-4 bg-white rounded-xl hover:bg-orange-50 transition-colors text-left border border-orange-200 hover:border-orange-300"
+          >
+            <div className="text-orange-600 mb-3">
+              <Bot className="w-8 h-8" />
+            </div>
+            <h3 className="font-semibold text-slate-800">Insights IA</h3>
+            <p className="text-sm text-slate-600">Analyses intelligentes du business</p>
+          </button>
+
+          <button 
+            onClick={() => optimizePricing()}
+            className="p-4 bg-white rounded-xl hover:bg-orange-50 transition-colors text-left border border-orange-200 hover:border-orange-300"
+          >
+            <div className="text-orange-600 mb-3">
+              <Target className="w-8 h-8" />
+            </div>
+            <h3 className="font-semibold text-slate-800">Optimisation Prix</h3>
+            <p className="text-sm text-slate-600">Suggestions de prix intelligentes</p>
+          </button>
+        </div>
+      </div>
+
+      {/* AI Insights Display */}
+      {aiInsights && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center text-slate-800">
+            <Sparkles className="w-6 h-6 mr-3 text-orange-600" />
+            Insights Intelligence Artificielle
+          </h2>
+          <div className="space-y-4">
+            {aiInsights.insights && aiInsights.insights.map((insight, index) => (
+              <div key={index} className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">
+                <div className="flex items-start">
+                  <div className={`w-3 h-3 rounded-full mt-1 mr-3 ${
+                    insight.impact === 'high' ? 'bg-red-500' : 
+                    insight.impact === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}></div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800">{insight.category}</h4>
+                    <p className="text-slate-600 text-sm">{insight.description}</p>
+                    <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-medium ${
+                      insight.impact === 'high' ? 'bg-red-100 text-red-800' : 
+                      insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      Impact: {insight.impact}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {aiInsights.recommendations && (
+              <div className="mt-6">
+                <h3 className="font-semibold text-slate-800 mb-3">Recommandations:</h3>
+                <ul className="space-y-2">
+                  {aiInsights.recommendations.map((rec, index) => (
+                    <li key={index} className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-green-500 mt-1 mr-2 flex-shrink-0" />
+                      <span className="text-slate-600 text-sm">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {loadingAI && (
+        <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+          <div className="flex items-center justify-center">
+            <LoadingSpinner size="large" />
+            <span className="ml-3 text-slate-600">Génération des insights IA en cours...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1636,7 +1859,7 @@ const AdminOrders = () => {
 
       {filteredOrders.length === 0 && (
         <div className="text-center py-12">
-          <span className="text-6xl">📦</span>
+          <Package className="w-16 h-16 mx-auto text-slate-400" />
           <p className="text-gray-500 mt-4">Aucune commande trouvée</p>
         </div>
       )}
@@ -1704,9 +1927,10 @@ const AdminMenu = () => {
         <h1 className="text-3xl font-bold">Gestion du Menu</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
         >
-          Ajouter un article
+          <Plus className="w-4 h-4" />
+          <span>Ajouter un article</span>
         </button>
       </div>
 
@@ -1742,25 +1966,36 @@ const AdminMenu = () => {
                     setEditingItem(item);
                     setShowForm(true);
                   }}
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 bg-slate-600 text-white py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center space-x-1"
                 >
-                  Modifier
+                  <Edit2 className="w-4 h-4" />
+                  <span>Modifier</span>
                 </button>
                 <button
                   onClick={() => toggleAvailability(item.id, item.available)}
-                  className={`flex-1 py-2 rounded-lg transition-colors ${
+                  className={`flex-1 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 ${
                     item.available
-                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                      : 'bg-green-600 text-white hover:bg-green-700'
+                      ? 'bg-amber-500 text-white hover:bg-amber-600'
+                      : 'bg-emerald-500 text-white hover:bg-emerald-600'
                   }`}
                 >
-                  {item.available ? 'Désactiver' : 'Activer'}
+                  {item.available ? (
+                    <>
+                      <EyeOff className="w-4 h-4" />
+                      <span>Désactiver</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      <span>Activer</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => deleteMenuItem(item.id)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
                 >
-                  🗑️
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1770,8 +2005,10 @@ const AdminMenu = () => {
 
       {menuItems.length === 0 && (
         <div className="text-center py-12">
-          <span className="text-6xl">🍽️</span>
-          <p className="text-gray-500 mt-4">Aucun article dans le menu</p>
+          <div className="text-center py-12">
+            <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+            <p className="text-gray-500 mt-4">Aucun article dans le menu</p>
+          </div>
         </div>
       )}
 
@@ -1951,17 +2188,19 @@ const AdminUsers = () => {
       <h1 className="text-3xl font-bold mb-6">Gestion des Utilisateurs</h1>
       
       <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <span className="text-6xl">👥</span>
-        <h2 className="text-xl font-bold mt-4 mb-2">Fonctionnalité en développement</h2>
-        <p className="text-gray-600">
-          La gestion des utilisateurs sera bientôt disponible. Cette section permettra de :
-        </p>
-        <ul className="text-left mt-4 space-y-2 max-w-md mx-auto">
-          <li>• Voir la liste des utilisateurs</li>
-          <li>• Modifier les rôles et permissions</li>
-          <li>• Gérer les comptes clients</li>
-          <li>• Analyser l'activité des utilisateurs</li>
-        </ul>
+        <div className="text-center py-12">
+          <Users className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+          <h2 className="text-xl font-bold mt-4 mb-2">Fonctionnalité en développement</h2>
+          <p className="text-gray-600">
+            La gestion des utilisateurs sera bientôt disponible. Cette section permettra de :
+          </p>
+          <ul className="text-left mt-4 space-y-2 max-w-md mx-auto">
+            <li>• Voir la liste des utilisateurs</li>
+            <li>• Modifier les rôles et permissions</li>
+            <li>• Gérer les comptes clients</li>
+            <li>• Analyser l'activité des utilisateurs</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
@@ -2017,9 +2256,10 @@ const AdminTables = () => {
         <h1 className="text-3xl font-bold">Gestion des Tables</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+          className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
         >
-          Ajouter une table
+          <Plus className="w-4 h-4" />
+          <span>Ajouter une table</span>
         </button>
       </div>
 
@@ -2027,7 +2267,11 @@ const AdminTables = () => {
         {tables.map(table => (
           <div key={table.id} className="bg-white rounded-lg shadow-sm p-6">
             <div className="text-center mb-4">
-              <div className="text-4xl mb-2">🪑</div>
+              <div className="flex justify-center mb-4">
+                <div className="p-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-full">
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+              </div>
               <h3 className="text-xl font-bold">Table {table.number}</h3>
               <p className="text-gray-600">{table.seats} places</p>
             </div>
@@ -2051,15 +2295,16 @@ const AdminTables = () => {
                   setEditingTable(table);
                   setShowForm(true);
                 }}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex-1 bg-slate-600 text-white py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center space-x-1"
               >
-                Modifier
+                <Edit2 className="w-4 h-4" />
+                <span>Modifier</span>
               </button>
               <button
                 onClick={() => deleteTable(table.id)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
               >
-                🗑️
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -2068,8 +2313,10 @@ const AdminTables = () => {
 
       {tables.length === 0 && (
         <div className="text-center py-12">
-          <span className="text-6xl">🪑</span>
+        <div className="text-center py-12">
+          <Calendar className="w-16 h-16 mx-auto text-slate-400 mb-4" />
           <p className="text-gray-500 mt-4">Aucune table configurée</p>
+        </div>
         </div>
       )}
 
@@ -2260,17 +2507,17 @@ const AdminInventory = () => {
 
       {/* AI Predictions */}
       {aiPredictions.length > 0 && (
-        <div className="mb-8 p-6 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 flex items-center">
-            <span className="mr-2">🤖</span>
+        <div className="mb-8 p-6 ai-card">
+          <h2 className="text-xl font-bold mb-4 flex items-center text-orange-800">
+            <Brain className="w-6 h-6 mr-3" />
             Prédictions IA - Demande 7 jours
           </h2>
           <div className="grid md:grid-cols-3 gap-4">
             {aiPredictions.slice(0, 3).map((pred, index) => (
-              <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
-                <h3 className="font-medium">{pred.item_name}</h3>
-                <p className="text-2xl font-bold text-blue-600">{pred.predicted_demand}</p>
-                <p className="text-sm text-gray-600">
+              <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-orange-100">
+                <h3 className="font-semibold text-slate-800">{pred.item_name}</h3>
+                <p className="text-2xl font-bold text-orange-600">{pred.predicted_demand}</p>
+                <p className="text-sm text-slate-600">
                   Confiance: {(pred.confidence * 100).toFixed(0)}% • {pred.trend}
                 </p>
               </div>
@@ -2282,7 +2529,10 @@ const AdminInventory = () => {
       {/* Stock Alerts */}
       {alerts.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4 text-red-600">🚨 Alertes Stock</h2>
+          <h2 className="text-xl font-bold mb-4 text-red-600 flex items-center">
+            <AlertTriangle className="w-6 h-6 mr-2" />
+            Alertes Stock
+          </h2>
           <div className="space-y-2">
             {alerts.map(alert => (
               <div key={alert.id} className={`p-4 rounded-lg border-l-4 ${
@@ -2348,10 +2598,365 @@ const AdminInventory = () => {
 
       {inventory.length === 0 && (
         <div className="text-center py-12">
-          <span className="text-6xl">📋</span>
+        <div className="text-center py-12">
+          <Receipt className="w-16 h-16 mx-auto text-slate-400 mb-4" />
           <p className="text-gray-500 mt-4">Aucun article en inventaire</p>
         </div>
+        </div>
       )}
+    </div>
+  );
+};
+
+// AdminReports Component
+const AdminReports = ({ setCurrentPage }) => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [reportData, setReportData] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    popularItems: [],
+    averageOrderValue: 0
+  });
+
+  useEffect(() => {
+    fetchReportData();
+  }, [selectedPeriod]);
+
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      // Fetch orders based on selected period
+      const response = await fetch('/api/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const filteredOrders = filterOrdersByPeriod(data.orders, selectedPeriod);
+        setOrders(filteredOrders);
+        calculateReportData(filteredOrders);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des rapports:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterOrdersByPeriod = (orders, period) => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      
+      switch (period) {
+        case 'today':
+          return orderDate >= startOfToday;
+        case 'week':
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          return orderDate >= weekAgo;
+        case 'month':
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          return orderDate >= monthAgo;
+        default:
+          return true;
+      }
+    });
+  };
+
+  const calculateReportData = (orders) => {
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalOrders = orders.length;
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Calculate popular items
+    const itemCounts = {};
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+      });
+    });
+
+    const popularItems = Object.entries(itemCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    setReportData({
+      totalRevenue,
+      totalOrders,
+      popularItems,
+      averageOrderValue
+    });
+  };
+
+  const generateReport = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/reports/generate?period=${selectedPeriod}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `rapport-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la génération du rapport:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Rapports</h1>
+            <p className="text-gray-600 mt-2">Analyse des ventes et performances</p>
+          </div>
+          <button
+            onClick={() => setCurrentPage('dashboard')}
+            className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour au tableau de bord
+          </button>
+        </div>
+      </div>
+
+      {/* Period Selector */}
+      <div className="mb-6">
+        <div className="flex space-x-4">
+          {[
+            { key: 'today', label: "Aujourd'hui" },
+            { key: 'week', label: 'Cette semaine' },
+            { key: 'month', label: 'Ce mois' }
+          ].map(period => (
+            <button
+              key={period.key}
+              onClick={() => setSelectedPeriod(period.key)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedPeriod === period.key
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {period.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Chiffre d'affaires</p>
+              <p className="text-2xl font-bold text-gray-900">{reportData.totalRevenue.toFixed(2)} €</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4 text-blue-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Commandes</p>
+              <p className="text-2xl font-bold text-gray-900">{reportData.totalOrders}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-orange-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Panier moyen</p>
+              <p className="text-2xl font-bold text-gray-900">{reportData.averageOrderValue.toFixed(2)} €</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <FileText className="w-4 h-4 text-orange-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Rapport</p>
+              <button
+                onClick={generateReport}
+                className="text-sm font-medium text-orange-600 hover:text-orange-800"
+              >
+                Télécharger PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Popular Items */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Plats populaires</h2>
+          <div className="space-y-4">
+            {reportData.popularItems.map((item, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-sm font-medium text-orange-600">#{index + 1}</span>
+                  </div>
+                  <span className="font-medium text-gray-900">{item.name}</span>
+                </div>
+                <span className="text-sm text-gray-500">{item.count} commandes</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Orders */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Commandes récentes</h2>
+          <div className="space-y-4">
+            {orders.slice(0, 5).map((order) => (
+              <div key={order._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900">#{order._id.slice(-6)}</p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(order.createdAt).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium text-gray-900">{order.total.toFixed(2)} €</p>
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                    order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {order.status === 'delivered' ? 'Livré' :
+                     order.status === 'preparing' ? 'En préparation' : 'En attente'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Orders Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Toutes les commandes</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Commande
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Client
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Montant
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Statut
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {orders.map((order) => (
+                <tr key={order._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="font-medium text-gray-900">#{order._id.slice(-6)}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {order.customerName || 'Client anonyme'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {new Date(order.createdAt).toLocaleDateString('fr-FR', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
+                    {order.total.toFixed(2)} €
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {order.status === 'delivered' ? 'Livré' :
+                       order.status === 'preparing' ? 'En préparation' : 'En attente'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {orders.length === 0 && (
+          <div className="text-center py-12">
+            <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">Aucune commande pour cette période</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -2406,13 +3011,13 @@ const AppContent = ({ currentPage, setCurrentPage }) => {
       <div className="flex">
         <AdminSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
         <div className="flex-1 ml-64">
-          {currentPage === 'dashboard' && <AdminDashboard />}
+          {currentPage === 'dashboard' && <AdminDashboard setCurrentPage={setCurrentPage} />}
           {currentPage === 'orders' && <AdminOrders />}
           {currentPage === 'menu' && <AdminMenu />}
           {currentPage === 'users' && <AdminUsers />}
           {currentPage === 'tables' && <AdminTables />}
           {currentPage === 'inventory' && <AdminInventory />}
-          {currentPage === 'reports' && <AdminDashboard />}
+          {currentPage === 'reports' && <AdminReports setCurrentPage={setCurrentPage} />}
         </div>
       </div>
     );
