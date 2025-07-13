@@ -1476,15 +1476,7 @@ const AuthPage = () => {
           </p>
         </div>
 
-        {/* Test Account Info */}
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-          <h3 className="font-medium text-blue-800 mb-2">Compte de test:</h3>
-          <p className="text-sm text-blue-600">
-            <strong>Admin:</strong> admin@restaurant.com / admin123<br/>
-            <strong>Ou créez un nouveau compte client</strong>
-          </p>
-        </div>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
