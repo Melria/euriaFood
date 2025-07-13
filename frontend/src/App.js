@@ -56,7 +56,8 @@ import {
   BarChart2,
   FileText,
   File,
-  Utensils
+  Utensils,
+  X
 } from 'lucide-react';
 import './App.css';
 
@@ -376,24 +377,44 @@ const ClientHeader = () => {
         {showMobileMenu && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <div className="space-y-2">
-              <a href="#home" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+              <a 
+                href="#home" 
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors"
+              >
                 Accueil
               </a>
-              <a href="#menu" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+              <a 
+                href="#menu" 
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors"
+              >
                 Menu
               </a>
-              <a href="#orders" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+              <a 
+                href="#orders" 
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors"
+              >
                 Mes Commandes
               </a>
-              <a href="#reservations" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+              <a 
+                href="#reservations" 
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors"
+              >
                 Réservations
               </a>
               <div className="border-t border-gray-200 pt-2">
-                <a href="#profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+                <a 
+                  href="#profile" 
+                  onClick={() => setShowMobileMenu(false)}
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors"
+                >
                   Mon Profil
                 </a>
                 <button
-                  onClick={logout}
+                  onClick={() => { logout(); setShowMobileMenu(false); }}
                   className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100 transition-colors"
                 >
                   Déconnexion
@@ -3118,6 +3139,7 @@ function App() {
 // App Content Component
 const AppContent = ({ currentPage, setCurrentPage }) => {
   const { user, loading } = useAuth();
+  const [showAdminMobileMenu, setShowAdminMobileMenu] = useState(false);
 
   useEffect(() => {
     // Set default page based on user role when user loads
@@ -3157,16 +3179,121 @@ const AppContent = ({ currentPage, setCurrentPage }) => {
 
   if (user.role === 'admin') {
     return (
-      <div className="flex">
-        <AdminSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
-        <div className="flex-1 ml-64">
-          {(!currentPage || currentPage === 'dashboard') && <AdminDashboard setCurrentPage={setCurrentPage} />}
-          {currentPage === 'orders' && <AdminOrders />}
-          {currentPage === 'menu' && <AdminMenu />}
-          {currentPage === 'users' && <AdminUsers />}
-          {currentPage === 'tables' && <AdminTables />}
-          {currentPage === 'inventory' && <AdminInventory />}
-          {currentPage === 'reports' && <AdminReports setCurrentPage={setCurrentPage} />}
+      <div className="flex flex-col md:flex-row min-h-screen">
+        {/* Mobile Admin Header */}
+        <div className="md:hidden bg-white shadow-sm border-b border-gray-200 p-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-bold text-orange-600 flex items-center">
+              <img 
+                src="https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png" 
+                alt="EURIA Food Logo" 
+                className="w-6 h-6 mr-2 object-contain"
+              />
+              Admin EURIA
+            </h1>
+            <button
+              onClick={() => setShowAdminMobileMenu(!showAdminMobileMenu)}
+              className="p-2 text-gray-700 hover:text-orange-600 transition-colors"
+            >
+              {showAdminMobileMenu ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
+          
+          {/* Mobile Admin Menu */}
+          {showAdminMobileMenu && (
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => { setCurrentPage('dashboard'); setShowAdminMobileMenu(false); }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 'dashboard' ? 'bg-orange-100 text-orange-800' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <BarChart3 className="w-5 h-5 mr-3" />
+                  Dashboard
+                </div>
+              </button>
+              <button
+                onClick={() => { setCurrentPage('orders'); setShowAdminMobileMenu(false); }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 'orders' ? 'bg-orange-100 text-orange-800' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <ShoppingBag className="w-5 h-5 mr-3" />
+                  Commandes
+                </div>
+              </button>
+              <button
+                onClick={() => { setCurrentPage('menu'); setShowAdminMobileMenu(false); }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 'menu' ? 'bg-orange-100 text-orange-800' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <Utensils className="w-5 h-5 mr-3" />
+                  Menu
+                </div>
+              </button>
+              <button
+                onClick={() => { setCurrentPage('users'); setShowAdminMobileMenu(false); }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 'users' ? 'bg-orange-100 text-orange-800' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <Users className="w-5 h-5 mr-3" />
+                  Utilisateurs
+                </div>
+              </button>
+              <button
+                onClick={() => { setCurrentPage('tables'); setShowAdminMobileMenu(false); }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 'tables' ? 'bg-orange-100 text-orange-800' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-3" />
+                  Tables
+                </div>
+              </button>
+              <button
+                onClick={() => { setCurrentPage('reports'); setShowAdminMobileMenu(false); }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 'reports' ? 'bg-orange-100 text-orange-800' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <FileText className="w-5 h-5 mr-3" />
+                  Rapports
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block">
+          <AdminSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        </div>
+        
+        {/* Main Content */}
+        <div className="flex-1 md:ml-64 min-h-screen bg-gray-50">
+          <div className="p-4 md:p-6">
+            {(!currentPage || currentPage === 'dashboard') && <AdminDashboard setCurrentPage={setCurrentPage} />}
+            {currentPage === 'orders' && <AdminOrders />}
+            {currentPage === 'menu' && <AdminMenu />}
+            {currentPage === 'users' && <AdminUsers />}
+            {currentPage === 'tables' && <AdminTables />}
+            {currentPage === 'inventory' && <AdminInventory />}
+            {currentPage === 'reports' && <AdminReports setCurrentPage={setCurrentPage} />}
+          </div>
         </div>
       </div>
     );
