@@ -273,51 +273,55 @@ const ClientHeader = () => {
   const { user, logout } = useAuth();
   const { getTotalItems, setIsCartOpen } = useCart();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-orange-600 flex items-center">
+            <h1 className="text-xl md:text-2xl font-bold text-orange-600 flex items-center">
               <img 
                 src="https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png" 
                 alt="EURIA Food Logo" 
-                className="w-8 h-8 mr-3 object-contain"
+                className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3 object-contain"
               />
-              EURIA Food
+              <span className="hidden sm:block">EURIA Food</span>
+              <span className="sm:hidden">EURIA</span>
             </h1>
           </div>
           
-          <nav className="hidden md:flex space-x-8">
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex space-x-8">
             <a href="#home" className="text-gray-700 hover:text-orange-600 transition-colors">Accueil</a>
             <a href="#menu" className="text-gray-700 hover:text-orange-600 transition-colors">Menu</a>
             <a href="#orders" className="text-gray-700 hover:text-orange-600 transition-colors">Mes Commandes</a>
             <a href="#reservations" className="text-gray-700 hover:text-orange-600 transition-colors">Réservations</a>
           </nav>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-4">
             {/* Cart Button */}
             <button
               onClick={() => setIsCartOpen(true)}
               className="relative p-2 text-gray-700 hover:text-orange-600 transition-colors"
             >
-              <ShoppingCart className="w-6 h-6" />
+              <ShoppingCart className="w-5 h-5 md:w-6 md:h-6" />
               {getTotalItems() > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs">
                   {getTotalItems()}
                 </span>
               )}
             </button>
 
-            {/* User Menu */}
-            <div className="relative">
+            {/* Desktop User Menu */}
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center space-x-2 text-gray-700 hover:text-orange-600 transition-colors"
               >
                 <User className="w-6 h-6" />
-                <span className="hidden md:block">{user?.name}</span>
+                <span className="hidden lg:block">{user?.name}</span>
                 <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -351,8 +355,53 @@ const ClientHeader = () => {
                 </div>
               )}
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="md:hidden p-2 text-gray-700 hover:text-orange-600 transition-colors"
+            >
+              {showMobileMenu ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {showMobileMenu && (
+          <div className="md:hidden py-4 border-t border-gray-200">
+            <div className="space-y-2">
+              <a href="#home" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+                Accueil
+              </a>
+              <a href="#menu" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+                Menu
+              </a>
+              <a href="#orders" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+                Mes Commandes
+              </a>
+              <a href="#reservations" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+                Réservations
+              </a>
+              <div className="border-t border-gray-200 pt-2">
+                <a href="#profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-600 transition-colors">
+                  Mon Profil
+                </a>
+                <button
+                  onClick={logout}
+                  className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100 transition-colors"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );
@@ -671,18 +720,18 @@ const ClientHomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-orange-600 to-red-600 text-white py-20">
+      <section className="bg-gradient-to-r from-orange-600 to-red-600 text-white py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-6xl font-bold mb-6 flex items-center justify-center">
-            <Utensils className="w-16 h-16 mr-4 text-white" />
+          <h1 className="text-3xl md:text-6xl font-bold mb-6 flex flex-col md:flex-row items-center justify-center">
+            <Utensils className="w-12 h-12 md:w-16 md:h-16 mb-2 md:mb-0 md:mr-4 text-white" />
             <span>EURIA Food</span>
           </h1>
-          <p className="text-xl mb-8 opacity-90">
+          <p className="text-lg md:text-xl mb-8 opacity-90 px-4">
             Découvrez une expérience culinaire unique avec des recommandations personnalisées par intelligence artificielle
           </p>
           <button
             onClick={scrollToMenu}
-            className="bg-white text-orange-600 px-8 py-4 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors"
+            className="bg-white text-orange-600 px-6 md:px-8 py-3 md:py-4 rounded-lg text-base md:text-lg font-medium hover:bg-gray-100 transition-colors"
           >
             Voir le Menu
           </button>
@@ -690,64 +739,64 @@ const ClientHomePage = () => {
       </section>
 
       {/* Services Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-8 md:py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12">Nos Services</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6 card">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12">Nos Services</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            <div className="text-center p-4 md:p-6 card">
               <div className="flex justify-center mb-4">
-                <div className="p-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-full">
-                  <Bot className="w-8 h-8 text-white" />
+                <div className="p-3 md:p-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-full">
+                  <Bot className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-slate-800">Recommandations IA</h3>
-              <p className="text-slate-600">Des suggestions personnalisées basées sur vos préférences et votre historique</p>
+              <h3 className="text-lg md:text-xl font-bold mb-2 text-slate-800">Recommandations IA</h3>
+              <p className="text-sm md:text-base text-slate-600">Des suggestions personnalisées basées sur vos préférences et votre historique</p>
             </div>
-            <div className="text-center p-6 card">
+            <div className="text-center p-4 md:p-6 card">
               <div className="flex justify-center mb-4">
-                <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full">
-                  <Zap className="w-8 h-8 text-white" />
+                <div className="p-3 md:p-4 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full">
+                  <Zap className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-slate-800">Prise en charge Rapide</h3>
-              <p className="text-slate-600">Prise en charge en 30 minutes ou moins</p>
+              <h3 className="text-lg md:text-xl font-bold mb-2 text-slate-800">Prise en charge Rapide</h3>
+              <p className="text-sm md:text-base text-slate-600">Prise en charge en 30 minutes ou moins</p>
             </div>
-            <div className="text-center p-6 card">
+            <div className="text-center p-4 md:p-6 card sm:col-span-2 lg:col-span-1">
               <div className="flex justify-center mb-4">
-                <div className="p-4 bg-gradient-to-br from-rose-500 to-pink-500 rounded-full">
-                  <Smartphone className="w-8 h-8 text-white" />
+                <div className="p-3 md:p-4 bg-gradient-to-br from-rose-500 to-pink-500 rounded-full">
+                  <Smartphone className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-2 text-slate-800">Commande Facile</h3>
-              <p className="text-slate-600">Interface intuitive pour commander en quelques clics</p>
+              <h3 className="text-lg md:text-xl font-bold mb-2 text-slate-800">Commande Facile</h3>
+              <p className="text-sm md:text-base text-slate-600">Interface intuitive pour commander en quelques clics</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Featured Menu */}
-      <section className="py-16">
+      <section className="py-8 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12">Plats Populaires</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12">Plats Populaires</h2>
           {loading ? (
             <div className="flex justify-center">
               <LoadingSpinner size="large" />
             </div>
           ) : (
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {featuredItems.map(item => (
                 <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   <img
                     src={item.image_url}
                     alt={item.name}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-40 sm:h-48 object-cover"
                   />
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2">{item.name}</h3>
-                    <p className="text-gray-600 mb-4">{item.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-orange-600">{item.price.toFixed(2)} Fcfa</span>
-                      <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">
+                  <div className="p-4 md:p-6">
+                    <h3 className="text-lg md:text-xl font-bold mb-2">{item.name}</h3>
+                    <p className="text-sm md:text-base text-gray-600 mb-4">{item.description}</p>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                      <span className="text-xl md:text-2xl font-bold text-orange-600">{item.price.toFixed(2)} Fcfa</span>
+                      <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs md:text-sm self-start sm:self-center">
                         {item.category}
                       </span>
                     </div>
