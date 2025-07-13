@@ -56,8 +56,7 @@ import {
   BarChart2,
   FileText,
   File,
-  Utensils,
-  X
+  Utensils
 } from 'lucide-react';
 import './App.css';
 

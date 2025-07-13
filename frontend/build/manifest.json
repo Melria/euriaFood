@@ -1,0 +1,32 @@
+{
+  "short_name": "EURIA Food",
+  "name": "EURIA Food - Restaurant IA",
+  "description": "Application intelligente de gestion de restaurant avec IA",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dq2hgwhux/image/upload/v1752350027/Eria_logo-removebg-preview_b6vihc.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#ea580c",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "categories": ["food", "business", "productivity"],
+  "lang": "fr",
+  "scope": "/",
+  "prefer_related_applications": false
+}
