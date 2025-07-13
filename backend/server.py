@@ -226,13 +226,43 @@ async def get_ai_recommendations(request: RecommendationRequest, current_user: d
         # Récupérer l'historique des commandes
         order_history = await db.orders.find({"user_id": request.user_id}).sort("created_at", -1).limit(20).to_list(20)
         
+        if not order_history:
+            # Recommandations par défaut pour nouveaux utilisateurs
+            menu_items = await db.menu_items.find().limit(5).to_list(5)
+            default_recommendations = {
+                "recommended_items": [
+                    {
+                        "name": item.get("name", "Plat recommandé"),
+                        "reason": "Plat populaire pour les nouveaux clients",
+                        "confidence_score": 0.8
+                    } for item in menu_items[:3]
+                ],
+                "insights": "Nouveau client - recommandations basées sur la popularité générale"
+            }
+            return {"status": "success", "recommendations": default_recommendations}
+        
         # Générer recommandations avec IA
-        recommendations = await ai_service.generate_menu_recommendations(
+        recommendations_result = await ai_service.generate_menu_recommendations(
             request.user_id, order_history, request.preferences or {}
         )
         
-        return {"status": "success", "recommendations": recommendations}
+        # Vérifier si l'IA a retourné une erreur
+        if isinstance(recommendations_result, dict) and "error" in recommendations_result:
+            logger.error(f"AI recommendations error: {recommendations_result['error']}")
+            # Retourner des recommandations par défaut
+            return {
+                "status": "success", 
+                "recommendations": {
+                    "recommended_items": [
+                        {"name": "Plat du jour", "reason": "Recommandation par défaut", "confidence_score": 0.7}
+                    ],
+                    "insights": "Service IA temporairement indisponible"
+                }
+            }
+        
+        return {"status": "success", "recommendations": recommendations_result}
     except Exception as e:
+        logger.error(f"Error in get_ai_recommendations: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur recommandations IA: {str(e)}")
 
 # Routes IA - Prédiction de stock
@@ -286,6 +316,17 @@ async def get_business_insights(current_user: dict = Depends(get_current_user)):
         orders = await db.orders.find().sort("created_at", -1).limit(500).to_list(500)
         menu_items = await db.menu_items.find().to_list(100)
         
+        if not orders:
+            # Retourner des données de démonstration si pas de commandes
+            return {
+                "status": "success", 
+                "insights": {
+                    "insights": ["Aucune commande trouvée pour générer des insights. Commencez par ajouter des commandes."],
+                    "recommendations": ["Ajoutez des plats populaires au menu", "Configurez les prix de manière compétitive"],
+                    "summary": "Restaurant en phase de démarrage"
+                }
+            }
+        
         analytics_data = {
             "orders": orders[:50],  # Limiter pour l'IA
             "menu_items": menu_items,
@@ -293,10 +334,24 @@ async def get_business_insights(current_user: dict = Depends(get_current_user)):
         }
         
         # Générer insights
-        insights = await ai_service.generate_business_insights(analytics_data)
+        insights_result = await ai_service.generate_business_insights(analytics_data)
         
-        return {"status": "success", "insights": insights}
+        # Vérifier si l'IA a retourné une erreur
+        if isinstance(insights_result, dict) and "error" in insights_result:
+            logger.error(f"AI Service error: {insights_result['error']}")
+            # Retourner des insights par défaut en cas d'erreur IA
+            return {
+                "status": "success", 
+                "insights": {
+                    "insights": ["Service IA temporairement indisponible. Insights génériques activés."],
+                    "recommendations": ["Analyser les tendances de vente manuellement", "Vérifier la configuration de l'API OpenAI"],
+                    "summary": "Données disponibles mais IA hors ligne"
+                }
+            }
+        
+        return {"status": "success", "insights": insights_result}
     except Exception as e:
+        logger.error(f"Error in get_business_insights: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur insights business: {str(e)}")
 
 # Gestion Inventaire

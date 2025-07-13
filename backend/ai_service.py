@@ -26,10 +26,20 @@ class AIService:
     async def generate_menu_recommendations(self, user_id: str, order_history: List, preferences: Optional[Dict] = None):
         """Génère des recommandations de menu personnalisées"""
         try:
+            # Vérifier si nous avons assez de données
+            if not order_history:
+                return {
+                    "recommended_items": [
+                        {"name": "Plat du jour", "reason": "Recommandation pour nouveau client", "confidence_score": 0.8},
+                        {"name": "Menu découverte", "reason": "Parfait pour découvrir nos spécialités", "confidence_score": 0.7}
+                    ],
+                    "insights": "Nouveau client - recommandations basées sur nos spécialités"
+                }
+
             prompt = f"""
             En tant qu'IA spécialisée en recommandations culinaires, analysez l'historique de commandes et générez des recommandations personnalisées.
             
-            Historique client: {json.dumps(order_history, default=str)}
+            Historique client: {json.dumps(order_history[:10], default=str)}
             Préférences: {json.dumps(preferences or {}, default=str)}
             
             Analysez:
@@ -58,21 +68,32 @@ class AIService:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                max_tokens=1000
+                max_tokens=800,
+                timeout=30  # Timeout de 30 secondes
             )
             
             response_text = response.choices[0].message.content
-            if response_text:
-                response_text = response_text.strip()
-            else:
+            if not response_text or response_text.strip() == "":
                 logger.error("Empty response from OpenAI")
                 return {"error": "Empty response from AI"}
             
+            # Nettoyer la réponse
+            response_text = response_text.strip()
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
             try:
-                return json.loads(response_text)
-            except json.JSONDecodeError:
-                logger.error(f"Invalid JSON response: {response_text}")
-                return {"error": "Invalid response format from AI"}
+                result = json.loads(response_text)
+                # Valider la structure
+                if not isinstance(result, dict) or "recommended_items" not in result:
+                    raise ValueError("Invalid response structure")
+                return result
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.error(f"Invalid JSON response: {response_text}, error: {e}")
+                return {"error": f"Invalid response format from AI: {str(e)}"}
             
         except Exception as e:
             logger.error(f"Erreur recommandations: {e}")
