@@ -1595,7 +1595,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const generateAIInsights = async () => {
     setLoadingAI(true);
     try {
-      const response = await api.get('/api/ai/insights');
+      const response = await api.get('/ai/insights');
       if (response.data.status === 'success') {
         setAiInsights(response.data.insights);
         toast.success('Insights IA générés avec succès!');
